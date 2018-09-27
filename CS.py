@@ -4,7 +4,8 @@ import argparse
 
 BUFFER_SIZE = 1024
 
-CSname = gethostname()
+CSname = socket.gethostname()
+print(CSname)
 
 if __name__ == "__main__":
 
@@ -27,22 +28,22 @@ if __name__ == "__main__":
 		sys.exit(1)
 
 	try:
-		tcp_socket.bind((CSname, CSport))
+		tcp_socket.bind(("", CSport))
 	except socket.error:
 		print('CS failed to bind')
 		sys.exit(1)
 
 	tcp_socket.listen(5)
 
-	try:
-		connection, client_addr = tcp_socket.accept()
-	except socket.error:
-		print('CS failed to establish connection')
-		sys.exit(1)
+	while True:
+		try:
+			connection, client_addr = tcp_socket.accept()
+		except socket.error:
+			print('CS failed to establish connection')
+			sys.exit(1)
 
-	try:
-		#corrigir cena de nao dar para recv mais do que uma vez
-		while True:
+		try:
+			#corrigir cena de nao dar para recv mais do que uma vez
 			data = connection.recv(BUFFER_SIZE)
 
 			if data:
@@ -50,11 +51,12 @@ if __name__ == "__main__":
 				if(fields[0] == user_commands[0]):
 					username = fields [1]
 					password = fields [2]
-					connection.sendall('User "{}" created'.format(username).encode('ascii'))
+					connection.sendall('AUR NEW'.encode('ascii'))
+					print(f'New user: {username}')
 			else:
 				break
-	except socket.error:
-		print('CS failed to trade data')
-		sys.exit(1)
-	finally:
-		connection.close()
+		except socket.error:
+			print('CS failed to trade data')
+			sys.exit(1)
+		finally:
+			connection.close()
