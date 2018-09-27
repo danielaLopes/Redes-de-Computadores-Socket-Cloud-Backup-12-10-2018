@@ -74,27 +74,32 @@ if __name__ == "__main__":
 	CSport = FLAGS.p
 
 	user = User(CSname, CSport)
-	print(CSname)
 
 	user.connect()
 	# Handle input
+	
 	while True:
 		fields = input().split()
 
 		if fields[0] in user.commands:
+			
 			if fields[0] == 'login':
 				username = fields[1]
 				password = fields[2]
+				
 				if len(username) == 5 and int(username) and len(password) == 8 and str.isalnum(password):
-					user.sendData(f'{user.CS_replies[0]} {username} {password}')
+					user.sendData('{} {} {}'.format(user.CS_replies[0], username, password))
 					data = user.receiveData(1024).decode()
+					
 					fields = data.split()
 					if fields[0] == user.CS_replies[1]:
 						print('User "{}" created'.format(username))
 						user.set_username(username)
 						user.set_password(password)
+			
 			elif fields[0] == 'exit':
 				user.closeSocket()
 				os._exit(0)
+		
 		else:
 			print('Comando invalido')

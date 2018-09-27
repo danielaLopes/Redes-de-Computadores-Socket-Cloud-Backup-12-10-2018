@@ -5,10 +5,10 @@ import argparse
 BUFFER_SIZE = 1024
 
 CSname = 'localhost'#socket.gethostname()
-print(CSname)
 
 if __name__ == "__main__":
 
+	BS_commands = ['REG','RGR']
 	user_commands = ['AUT', 'AUR', 'DLU', 'DLR', 'BCK', 'BKR', 'RST', 'LSD', 'LDR', 'LSF', 'LFD', 'DEL', 'DDR']
 
 	# Parse argument
@@ -21,30 +21,44 @@ if __name__ == "__main__":
 	FLAG = parser.parse_args()
 	CSport = FLAG.p
 
-	# CLIENT FOR UDP TO COMMUNICATE WITH BS
+
 	UDP_IP = 'localhost'
 	UDP_PORT = 58018
 
-	# create a UDP socket
-	udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-	server_address = (UDP_IP, UDP_PORT)
-	message = 'This is the message.'
+	try:
+		udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	except socket.error:
+		print('BS failed to create socket')
+		sys.exit(1)
 
 	try:
-	    # send data
-	    print('sending')
-	    udp_socket.sendto(message.encode(), server_address)
+		udp_socket.bind((UDP_IP, UDP_PORT))
+	except socket.error:
+		print('BS failed to bind')
+		sys.exit(1)
 
-	    # receive response
-	    print('waiting')
-	    data, server = udp_socket.recvfrom(BUFFER_SIZE)
-	    print('received')
 
-	finally:
-	    print('closing')
-	    udp_socket.close()
-''''
+	try:
+		data, client_address = udp_socket.recvfrom(BUFFER_SIZE)
+
+		if data:
+		    fields = data.decode().split()
+
+		    if(fields[0] == BS_commands[0]):
+		    	IPBS = fields [1]
+		    	portBS = fields [2]
+		    	print('{} {} {}'.format(fields[0], IPBS, portBS))
+		    	udp_socket.sendto('RGR OK'.encode('ascii'), client_address)
+
+
+	except socket.error:
+		print('BS failed to trade data')
+		sys.exit(1)
+
+''' TCP CONNECTION '''
+
+'''
+
 	try:
 		tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	except socket.error:
@@ -72,11 +86,13 @@ if __name__ == "__main__":
 
 			if data:
 				fields = data.decode().split()
+				
 				if(fields[0] == user_commands[0]):
 					username = fields [1]
 					password = fields [2]
 					connection.sendall('AUR NEW'.encode('ascii'))
-					print(f'New user: {username}')
+					print('New user: "{}"'.format(username))
+					#print(f'New user: {username}')
 			else:
 				break
 		except socket.error:
