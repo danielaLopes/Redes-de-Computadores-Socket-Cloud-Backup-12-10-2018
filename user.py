@@ -8,6 +8,7 @@ BUFFER_SIZE = 1024
 class User:
 
 	commands = ['login', 'deluser', 'backup', 'restore', 'dirlist', 'filelist', 'delete', 'logout', 'exit']
+	replies = ['AUT', 'AUR', 'DLU', 'DLR', 'BCK', 'BKR', 'RST', 'LSD', 'LDR', 'LSF', 'LFD', 'DEL', 'DDR']
 
 	def __init__(self, CSname, CSport):
 		self.TCPsocket = None
@@ -15,6 +16,12 @@ class User:
 		self.password = None
 		self.CSname = CSname
 		self.CSport = CSport
+
+	def set_username(self, username):
+		self.username = username
+
+	def set_password(self, password):
+		self.password = password
 
 	def connect(self):
 		try:
@@ -52,7 +59,7 @@ if __name__ == "__main__":
 	# Parse arguments
 	parser = argparse.ArgumentParser()
 
-	parser.add_argument('-n', action='store', metavar='CSname', type=str, required=False, default='localhost',
+	parser.add_argument('-n', action='store', metavar='CSname', type=str, required=False, default='194.210.231.52',
 	help='CSname is the name of the machine where the central server (CS) runs. This is \
 	an optional argument. If this argument is omitted, the CS should be running on the same\
 	machine.')
@@ -78,9 +85,10 @@ if __name__ == "__main__":
 			username = fields[1]
 			password = fields[2]
 			if len(username) == 5 and int(username) and len(password) == 8 and str.isalnum(password):
-				user.sendData(username)
-				user.sendData(password)
+				user.sendData(f'{user.replies[0]} {username} {password}')
 				print(user.receiveData(1024).decode())
+				user.set_username(username)
+				user.set_password(password)
 				user.closeSocket()
 		#elif fields[0] == 'exit':
         	#disconnect()

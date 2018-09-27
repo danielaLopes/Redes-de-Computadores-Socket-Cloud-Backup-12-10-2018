@@ -4,9 +4,11 @@ import argparse
 
 BUFFER_SIZE = 1024
 
-CSname = 'localhost'
+CSname = gethostname()
 
 if __name__ == "__main__":
+
+	user_commands = ['AUT', 'AUR', 'DLU', 'DLR', 'BCK', 'BKR', 'RST', 'LSD', 'LDR', 'LSF', 'LFD', 'DEL', 'DDR']
 
 	# Parse argument
 	parser = argparse.ArgumentParser()
@@ -39,13 +41,16 @@ if __name__ == "__main__":
 		sys.exit(1)
 
 	try:
+		#corrigir cena de nao dar para recv mais do que uma vez
 		while True:
 			data = connection.recv(BUFFER_SIZE)
-			print('recebeu')
 
 			if data:
-				connection.sendall(f'User {data.decode()} created!'.encode('ascii'))
-				print('chegou')
+				fields = data.decode().split()
+				if(fields[0] == user_commands[0]):
+					username = fields [1]
+					password = fields [2]
+					connection.sendall('User "{}" created'.format(username).encode('ascii'))
 			else:
 				break
 	except socket.error:
@@ -53,4 +58,3 @@ if __name__ == "__main__":
 		sys.exit(1)
 	finally:
 		connection.close()
-
