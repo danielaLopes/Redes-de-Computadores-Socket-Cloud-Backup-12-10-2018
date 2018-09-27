@@ -1,9 +1,9 @@
 import socket
 import sys
+import argparse
 
 UDP_IP = 'localhost'
 UDP_PORT = 58018
-MESSAGE = "Hello, World!"
 BUFFER_SIZE = 1024
 
 BSname = 'localhost'
@@ -13,8 +13,8 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 
 	parser.add_argument('-b', action='store', metavar='BSport', type=str, required=False, default='58018',
-	help='BSport is the well-known port where the BS server accepts TCP requests
-	from the user application. This is an optional argument. If omitted, it assumes
+	help='BSport is the well-known port where the BS server accepts TCP requests\
+	from the user application. This is an optional argument. If omitted, it assumes\
 	the value 59000.')
 
 	parser.add_argument('-n', action='store', metavar='CSname', type=str, required=False, default='localhost',

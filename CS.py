@@ -21,6 +21,30 @@ if __name__ == "__main__":
 	FLAG = parser.parse_args()
 	CSport = FLAG.p
 
+	# CLIENT FOR UDP TO COMMUNICATE WITH BS
+	UDP_IP = 'localhost'
+	UDP_PORT = 58018
+
+	# create a UDP socket
+	udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+	server_address = (UDP_IP, UDP_PORT)
+	message = 'This is the message.'
+
+	try:
+	    # send data
+	    print('sending')
+	    udp_socket.sendto(message.encode(), server_address)
+
+	    # receive response
+	    print('waiting')
+	    data, server = udp_socket.recvfrom(BUFFER_SIZE)
+	    print('received')
+
+	finally:
+	    print('closing')
+	    udp_socket.close()
+''''
 	try:
 		tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	except socket.error:
@@ -60,3 +84,4 @@ if __name__ == "__main__":
 			sys.exit(1)
 		finally:
 			connection.close()
+'''
