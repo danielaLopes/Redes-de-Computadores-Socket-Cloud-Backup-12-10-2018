@@ -76,13 +76,12 @@ if __name__ == "__main__":
 	user = User(CSname, CSport)
 	print(CSname)
 
+	user.connect()
 	# Handle input
-	while true:
-		input = input()
-		fields = input.split()
+	while True:
+		fields = input().split()
 
 		if fields[0] in user.commands:
-			user.connect()
 			if fields[0] == 'login':
 				username = fields[1]
 				password = fields[2]
@@ -94,7 +93,8 @@ if __name__ == "__main__":
 						print('User "{}" created'.format(username))
 						user.set_username(username)
 						user.set_password(password)
-					user.closeSocket()
 			elif fields[0] == 'exit':
-	        	disconnect()
-	            os._exit(0)
+				user.closeSocket()
+				os._exit(0)
+		else:
+			print('Comando invalido')

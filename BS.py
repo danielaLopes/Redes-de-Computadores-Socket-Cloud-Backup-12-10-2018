@@ -6,7 +6,6 @@ UDP_PORT = 58018
 MESSAGE = "Hello, World!"
 BUFFER_SIZE = 1024
 
-'''
 BSname = 'localhost'
 
 if __name__ == "__main__":
@@ -32,32 +31,31 @@ if __name__ == "__main__":
 	BSsport = FLAGS.b
 	CSname = FLAGS.n
 	CSport = FLAGS.p
-'''
 
-try:
-	udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-except socket.error:
-	print('BS failed to create socket')
-	sys.exit(1)
+	try:
+		udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	except socket.error:
+		print('BS failed to create socket')
+		sys.exit(1)
 
-try:
-	udp_socket.bind((UDP_IP, UDP_PORT))
-except socket.error:
-	print('BS failed to bind')
-	sys.exit(1)
+	try:
+		udp_socket.bind((UDP_IP, UDP_PORT))
+	except socket.error:
+		print('BS failed to bind')
+		sys.exit(1)
 
 
-try:
-	while True:
-	    print('waiting to receive')
-	    data, client_address = udp_socket.recvfrom(BUFFER_SIZE)
-	  	    
-	    if data:
-	        sent = udp_socket.sendto(data, client_address)
-	        print('enviar')
-	    else:
-	    	break
+	try:
+		while True:
+		    print('waiting to receive')
+		    data, client_address = udp_socket.recvfrom(BUFFER_SIZE)
 
-except socket.error:
-	print('BS failed to trade data')
-	sys.exit(1)
+		    if data:
+		        sent = udp_socket.sendto(data, client_address)
+		        print('enviar')
+		    else:
+		    	break
+
+	except socket.error:
+		print('BS failed to trade data')
+		sys.exit(1)

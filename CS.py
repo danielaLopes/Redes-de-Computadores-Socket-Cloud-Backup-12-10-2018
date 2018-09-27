@@ -4,7 +4,7 @@ import argparse
 
 BUFFER_SIZE = 1024
 
-CSname = socket.gethostname()
+CSname = 'localhost'#socket.gethostname()
 print(CSname)
 
 if __name__ == "__main__":
