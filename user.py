@@ -10,18 +10,12 @@ class User:
 	commands = ['login', 'deluser', 'backup', 'restore', 'dirlist', 'filelist', 'delete', 'logout', 'exit']
 	CS_replies = ['AUT', 'AUR', 'DLU', 'DLR', 'BCK', 'BKR', 'RST', 'LSD', 'LDR', 'LSF', 'LFD', 'DEL', 'DDR']
 
+	current_user = None # username: password
+
 	def __init__(self, CSname, CSport):
 		self.TCPsocket = None
-		self.username = None
-		self.password = None
 		self.CSname = CSname
 		self.CSport = CSport
-
-	def set_username(self, username):
-		self.username = username
-
-	def set_password(self, password):
-		self.password = password
 
 	def connect(self):
 		try:
@@ -45,10 +39,13 @@ class User:
 
 	def receiveData(self, n_bytes):
 		try:
-			return self.TCPsocket.recv(n_bytes)
+			return self.TCPsocket.recv(n_bytes).decode()
 		except socket.error:
 			print('User failed to receive data from Central Server')
 			sys.exit(1)
+
+	#def processCSresponse(self, CS_response, status):
+
 
 	def closeSocket(self):
 		self.TCPsocket.close()
@@ -74,32 +71,63 @@ if __name__ == "__main__":
 	CSport = FLAGS.p
 
 	user = User(CSname, CSport)
+	print(CSname)
 
 	user.connect()
 	# Handle input
-	
 	while True:
 		fields = input().split()
-
-		if fields[0] in user.commands:
-			
-			if fields[0] == 'login':
+		input_command = fields[0]
+		# verifies if the input command exists
+		if input_command in user.commands:
+			if input_command == 'login':
 				username = fields[1]
 				password = fields[2]
-				
+				# verify user input
 				if len(username) == 5 and int(username) and len(password) == 8 and str.isalnum(password):
-					user.sendData('{} {} {}'.format(user.CS_replies[0], username, password))
-					data = user.receiveData(1024).decode()
-					
+					user.sendData('{} {} {}'.format(user.CS_replies[0], username, password)) # AUT
+					data = user.receiveData(1024)
 					fields = data.split()
-					if fields[0] == user.CS_replies[1]:
-						print('User "{}" created'.format(username))
-						user.set_username(username)
-						user.set_password(password)
-			
-			elif fields[0] == 'exit':
+					CS_response = fields[0]
+					status = fields[1]
+
+					if CS_response == 'AUR':
+						if(status == 'NEW'):
+							print('User "{}" created'.format(username))
+							user.current_user = {username: password}
+						elif(status == 'OK'):
+							user.current_user = {username: password}
+						elif(status == 'NOK'):
+							print('Incorrect password')
+						else:
+							print('Wrong protocol message received from CS')
+							sys.exit(1)
+					else:
+						print('Wrong protocol message received from CS')
+						sys.exit(1)
+
+			elif input_command == 'deluser':
+				user.sendData(user.CS_replies[2]) # DLU
+				data = user.receiveData(1024)
+				fields = data.split()
+				CS_response = fields[0]
+				status = fields[1]
+
+				if CS_response == 'DLR':
+					if(status == 'OK'):
+						user.current_user = None
+						print('User successfully deleted')
+					elif(status == 'NOK'):
+						print('User cannot be deleted because it still has information stored')
+					else:
+						print('Wrong protocol message received from CS')
+						sys.exit(1)
+				else:
+					print('Wrong protocol message received from CS')
+					sys.exit(1)
+
+			elif input_command == 'exit':
 				user.closeSocket()
 				os._exit(0)
-		
 		else:
 			print('Comando invalido')

@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
 		# receive response
 		data, server = udp_socket.recvfrom(BUFFER_SIZE)
-		print(data)
+		print(data.decode())
 
 	except socket.error:
 		print('closing')
