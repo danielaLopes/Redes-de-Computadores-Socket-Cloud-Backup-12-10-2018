@@ -2,8 +2,6 @@ import socket
 import sys
 import argparse
 
-UDP_IP = 'localhost'
-UDP_PORT = 58018
 BUFFER_SIZE = 1024
 
 BSname = 'localhost'
@@ -35,7 +33,7 @@ if __name__ == "__main__":
 	CSname = FLAGS.n
 	CSport = FLAGS.p
 
-	# CLIENT FOR UDP TO COMMUNICATE WITH BS
+	# CLIENT FOR UDP TO COMMUNICATE WITH CS
 
 	# create a UDP socket
 	udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -44,7 +42,7 @@ if __name__ == "__main__":
 
 	try:
 		# send data
-		udp_socket.sendto(('{} {} {}'.format(commands[0], BSname, BSport)).encode(),server_address)
+		udp_socket.sendto(('{} {} {}'.format(commands[0], BSname, BSport)).encode(), server_address)
 
 		# receive response
 		data, server = udp_socket.recvfrom(BUFFER_SIZE)
