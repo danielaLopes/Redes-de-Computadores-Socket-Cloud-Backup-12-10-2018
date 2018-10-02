@@ -71,9 +71,8 @@ if __name__ == "__main__":
 	CSport = FLAGS.p
 
 	user = User(CSname, CSport)
-	print(CSname)
 
-	user.connect()
+
 	# Handle input
 	while True:
 		fields = input().split()
@@ -81,11 +80,12 @@ if __name__ == "__main__":
 		# verifies if the input command exists
 		if input_command in user.commands:
 			if input_command == 'login':
+				user.connect()
 				username = fields[1]
 				password = fields[2]
 				# verify user input
 				if len(username) == 5 and int(username) and len(password) == 8 and str.isalnum(password):
-					user.sendData('{} {} {}'.format(user.CS_replies[0], username, password)) # AUT
+					user.sendData('{} {} {}\n'.format(user.CS_replies[0], username, password)) # AUT
 					data = user.receiveData(1024)
 					fields = data.split()
 					CS_response = fields[0]

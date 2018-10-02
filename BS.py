@@ -2,8 +2,6 @@ import socket
 import sys
 import argparse
 
-UDP_IP = 'localhost'
-UDP_PORT = 58018
 BUFFER_SIZE = 1024
 
 BSname = 'localhost'
@@ -35,23 +33,25 @@ if __name__ == "__main__":
 	CSname = FLAGS.n
 	CSport = FLAGS.p
 
-	# CLIENT FOR UDP TO COMMUNICATE WITH BS
+	# CLIENT FOR UDP TO COMMUNICATE WITH CS
 
 	# create a UDP socket
 	udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 	server_address = (BSname, BSport)
 
-	try:
+	while True:
+		
+		try:
 		# send data
-		udp_socket.sendto(('{} {} {}'.format(commands[0], BSname, BSport)).encode(),server_address)
+			udp_socket.sendto(('{} {} {}'.format(commands[0], BSname, BSport)).encode(), server_address)
 
-		# receive response
-		data, server = udp_socket.recvfrom(BUFFER_SIZE)
-		print(data.decode())
+			# receive response
+			data, server = udp_socket.recvfrom(BUFFER_SIZE)
+			print(data.decode())
 
-	except socket.error:
-		print('closing')
-		udp_socket.close()
-		print('BS failed to trade data')
-		sys.exit(1)
+		except socket.error:
+			print('closing')
+			udp_socket.close()
+			print('BS failed to trade data')
+			sys.exit(1)
