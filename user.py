@@ -44,9 +44,6 @@ class User:
 			print('User failed to receive data from Central Server')
 			sys.exit(1)
 
-	#def processCSresponse(self, CS_response, status):
-
-
 	def closeSocket(self):
 		self.TCPsocket.close()
 
@@ -78,18 +75,21 @@ if __name__ == "__main__":
 		fields = input().split()
 		input_command = fields[0]
 		# verifies if the input command exists
+		#E PRECISO VERIFICAR SE OS ARGUMENTOS DADOS COM OS COMANDOS ESTAO CERTOS???
+		#E PRECISO VERIFICAR SE OS COMANDOS DOS PROTOCOLOS TERMINAM EM \n??????
 		if input_command in user.commands:
 			if input_command == 'login':
-				user.connect()
 				username = fields[1]
 				password = fields[2]
 				# verify user input
 				if len(username) == 5 and int(username) and len(password) == 8 and str.isalnum(password):
-					user.sendData('{} {} {}\n'.format(user.CS_replies[0], username, password)) # AUT
+					user.connect()
+					user.sendData('AUT {} {}\n'.format(username, password))
 					data = user.receiveData(1024)
 					fields = data.split()
 					CS_response = fields[0]
 					status = fields[1]
+					user.closeSocket()
 
 					if CS_response == 'AUR':
 						if(status == 'NEW'):
@@ -106,28 +106,37 @@ if __name__ == "__main__":
 						print('Wrong protocol message received from CS')
 						sys.exit(1)
 
-			elif input_command == 'deluser':
-				user.sendData(user.CS_replies[2]) # DLU
-				data = user.receiveData(1024)
-				fields = data.split()
-				CS_response = fields[0]
-				status = fields[1]
+			#User input commands in which login is needed
+			elif user.current_user != None:
+				if input_command == 'deluser':
+					user.connect()
+					user.sendData('DLU\n')
+					data = user.receiveData(1024)
+					fields = data.split()
+					CS_response = fields[0]
+					status = fields[1]
+					user.closeSocket()
 
-				if CS_response == 'DLR':
-					if(status == 'OK'):
-						user.current_user = None
-						print('User successfully deleted')
-					elif(status == 'NOK'):
-						print('User cannot be deleted because it still has information stored')
+					if CS_response == 'DLR':
+						if(status == 'OK'):
+							user.current_user = None
+							print('User successfully deleted')
+						elif(status == 'NOK'):
+							print('User cannot be deleted because it still has information stored')
+						else:
+							print('Wrong protocol message received from CS')
+							sys.exit(1)
 					else:
 						print('Wrong protocol message received from CS')
 						sys.exit(1)
-				else:
-					print('Wrong protocol message received from CS')
-					sys.exit(1)
+
+				elif input_command == 'logout':
+					user.current_user = None
 
 			elif input_command == 'exit':
-				user.closeSocket()
-				os._exit(0)
+				os._exit(0) #ESTAMOS A USAR A CENA CERTA??
+
+			elif user.current_user == None:
+				print('User authentication needed')
 		else:
 			print('Comando invalido')

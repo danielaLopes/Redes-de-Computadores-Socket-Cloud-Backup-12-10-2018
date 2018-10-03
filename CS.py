@@ -52,23 +52,29 @@ if __name__ == "__main__":
 			print('CS failed to bind with BS')
 			sys.exit(1)
 
-		while True:
-			print('Waiting for a connection with a BS')
-			try:
-				data, client_address = udp_socket.recvfrom(BUFFER_SIZE)
+		print('Waiting for a connection with a BS')
+		try:
+			data, client_address = udp_socket.recvfrom(BUFFER_SIZE)
 
-				if data:
-				    fields = data.decode().split()
+			if data:
+			    fields = data.decode().split()
 
-				    if(fields[0] == BS_commands[0]):
-				    	IPBS = fields [1]
-				    	portBS = fields [2]
-				    	print('{} {} {}'.format(fields[0], IPBS, portBS))
-				    	udp_socket.sendto('RGR OK'.encode('ascii'), client_address)
+			    if(fields[0] == 'REG'):
+			    	IPBS = fields [1]
+			    	portBS = fields [2]
+			    	print('{} {} {}'.format(fields[0], IPBS, portBS))
+			    	udp_socket.sendto('RGR OK\n'.encode('ascii'), client_address)
+			 	
+			 	#QUANDO FAZER RGR ERR?????
+			    else:
+			 	    udp_socket.sendto('RGR NOK\n'.encode('ascii'), client_address)
 
-			except socket.error:
-				print('CS failed to trade data with BS')
-				sys.exit(1)
+		except socket.error:
+			print('CS failed to trade data with BS')
+			sys.exit(1)
+
+		finally:
+			udp_socket.close()
 
 
 	# Parent process running TCP server
@@ -112,14 +118,14 @@ if __name__ == "__main__":
 
 								if username in registered_users.keys():
 									if password == registered_users[username]:
-										connection.sendall('AUR OK'.encode('ascii'))
+										connection.sendall('AUR OK\n'.encode('ascii'))
 										current_user = username
 										print('User: "{}"'.format(username))
 									else:
-										connection.sendall('AUR NOK'.encode('ascii'))
+										connection.sendall('AUR NOK\n'.encode('ascii'))
 										print('Incorrect password')
 								else:
-									connection.sendall('AUR NEW'.encode('ascii'))
+									connection.sendall('AUR NEW\n'.encode('ascii'))
 									registered_users[username] = password
 									current_user = username
 									print('New user: "{}"'.format(username))
@@ -131,15 +137,15 @@ if __name__ == "__main__":
 									try:
 										del registered_users[current_user]
 										current_user = None
-										connection.sendall('DLR OK'.encode('ascii'))
+										connection.sendall('DLR OK\n'.encode('ascii'))
 									except KeyError:
 										print('This user is not registered')
 									#else:
-										#connection.sendall('DLR NOK'.encode('ascii'))
+										#connection.sendall('DLR NOK\n'.encode('ascii'))
 							else:
 								print('User authentication needed')
 						else:
-							connection.sendall('ERR'.encode('ascii'))
+							connection.sendall('ERR\n'.encode('ascii'))
 							sys.exit(1)
 					else:
 						break
