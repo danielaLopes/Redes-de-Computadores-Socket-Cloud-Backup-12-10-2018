@@ -10,13 +10,21 @@ class User:
 	commands = ['login', 'deluser', 'backup', 'restore', 'dirlist', 'filelist', 'delete', 'logout', 'exit']
 	CS_replies = ['AUT', 'AUR', 'DLU', 'DLR', 'BCK', 'BKR', 'RST', 'LSD', 'LDR', 'LSF', 'LFD', 'DEL', 'DDR']
 
-	current_user = None # username: password
+	current_user = [] # [username, password]
 
 	def __init__(self, CSname, CSport):
 		self.TCPsocket = None
 		self.CSname = CSname
 		self.CSport = CSport
 
+	def set_currentUser(self, username, password):
+		self.current_user.insert(0, username)
+		self.current_user.insert(1, password)
+
+	def del_currentUser(self, username, password):
+		self.current_user= []
+
+	# Socket related methods
 	def connect(self):
 		try:
 			self.TCPsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -46,6 +54,83 @@ class User:
 
 	def closeSocket(self):
 		self.TCPsocket.close()
+
+	# Interface related methods
+	def sendAuthentication(self, username, password):
+		self.sendData('AUT {} {}\n'.format(username, password))
+		data = self.receiveData(1024)
+		fields = data.split()
+		CS_response = fields[0]
+		status = fields[1]
+
+		if CS_response == 'AUR':
+			if(status == 'NEW'):
+				print('User "{}" created'.format(username))
+				self.set_currentUser(username, password)
+			elif(status == 'OK'):
+				self.set_currentUser(username, password)
+			elif(status == 'NOK'):
+				print('Incorrect password')
+			else:
+				print('Wrong protocol message received from CS')
+				sys.exit(1)
+		else:
+			print('Wrong protocol message received from CS')
+			sys.exit(1)
+
+	# E PRECISO FECHAR O SOCKET ANTES DE FAZER SYS.EXIT() ?????????
+	def login(self, username, password):
+		# verify user input
+		if len(username) == 5 and int(username) and len(password) == 8 and str.isalnum(password):
+			self.connect()
+			self.sendAuthentication(username, password)
+			self.closeSocket()
+
+	def deluser(self):
+		self.connect()
+		self.sendAuthentication(user.current_user[0], user.current_user[1])
+		self.sendData('DLU\n')
+		data = self.receiveData(1024)
+		fields = data.split()
+		CS_response = fields[0]
+		status = fields[1]
+		self.closeSocket()
+
+		if CS_response == 'DLR':
+			if(status == 'OK'):
+				self.current_user = []
+				print('User successfully deleted')
+			elif(status == 'NOK'):
+				print('User cannot be deleted because it still has information stored')
+			else:
+				print('Wrong protocol message received from CS')
+				sys.exit(1)
+		else:
+			print('Wrong protocol message received from CS')
+			sys.exit(1)
+
+	def backupDir(self, dir):
+		self.connect()
+		self.sendAuthentication(user.current_user[0], user.current_user[1])
+
+	def restoreDir(self, dir):
+		self.connect()
+		self.sendAuthentication(user.current_user[0], user.current_user[1])
+
+	def dirlist(self):
+		self.connect()
+		self.sendAuthentication(user.current_user[0], user.current_user[1])
+
+	def filelistDir(self, dir):
+		self.connect()
+		self.sendAuthentication(user.current_user[0], user.current_user[1])
+
+	def deleteDir(self, dir):
+		self.connect()
+		self.sendAuthentication(user.current_user[0], user.current_user[1])
+
+	def logout(self):
+		self.del_currentUser()
 
 
 if __name__ == "__main__":
@@ -78,65 +163,35 @@ if __name__ == "__main__":
 		#E PRECISO VERIFICAR SE OS ARGUMENTOS DADOS COM OS COMANDOS ESTAO CERTOS???
 		#E PRECISO VERIFICAR SE OS COMANDOS DOS PROTOCOLOS TERMINAM EM \n??????
 		if input_command in user.commands:
-			if input_command == 'login':
-				username = fields[1]
-				password = fields[2]
-				# verify user input
-				if len(username) == 5 and int(username) and len(password) == 8 and str.isalnum(password):
-					user.connect()
-					user.sendData('AUT {} {}\n'.format(username, password))
-					data = user.receiveData(1024)
-					fields = data.split()
-					CS_response = fields[0]
-					status = fields[1]
-					user.closeSocket()
-
-					if CS_response == 'AUR':
-						if(status == 'NEW'):
-							print('User "{}" created'.format(username))
-							user.current_user = {username: password}
-						elif(status == 'OK'):
-							user.current_user = {username: password}
-						elif(status == 'NOK'):
-							print('Incorrect password')
-						else:
-							print('Wrong protocol message received from CS')
-							sys.exit(1)
-					else:
-						print('Wrong protocol message received from CS')
-						sys.exit(1)
-
+			if (len(fields) == 3):
+				if input_command == 'login':
+					user.login(fields[1], fields[2]);
 			#User input commands in which login is needed
-			elif user.current_user != None:
-				if input_command == 'deluser':
-					user.connect()
-					user.sendData('DLU\n')
-					data = user.receiveData(1024)
-					fields = data.split()
-					CS_response = fields[0]
-					status = fields[1]
-					user.closeSocket()
+			elif user.current_user != []:
+				if (len(fields) == 1):
+					if input_command == 'deluser':
+						user.deluser();
 
-					if CS_response == 'DLR':
-						if(status == 'OK'):
-							user.current_user = None
-							print('User successfully deleted')
-						elif(status == 'NOK'):
-							print('User cannot be deleted because it still has information stored')
-						else:
-							print('Wrong protocol message received from CS')
-							sys.exit(1)
-					else:
-						print('Wrong protocol message received from CS')
-						sys.exit(1)
+					elif input_command == 'logout':
+						user.logout()
 
-				elif input_command == 'logout':
-					user.current_user = None
+					elif input_command == 'dirlist':
+						user.dirlist()
 
-			elif input_command == 'exit':
+				elif (len(fields) == 2):
+					if input_command == 'backup':
+						user.backupDir(fields[1])
+
+					elif input_command == 'restore':
+						user.restoreDir(fields[1])
+
+					elif input_command == 'delete':
+						user.deleteDir(fields[1])
+
+			elif input_command == 'exit' and len(fields) == 1:
 				os._exit(0) #ESTAMOS A USAR A CENA CERTA??
 
-			elif user.current_user == None:
+			elif user.current_user == []:
 				print('User authentication needed')
 		else:
-			print('Comando invalido')
+			print('Invalid command')
