@@ -57,17 +57,17 @@ if __name__ == "__main__":
 			data, client_address = udp_socket.recvfrom(BUFFER_SIZE)
 
 			if data:
-			    fields = data.decode().split()
+				fields = data.decode().split()
 
-			    if(fields[0] == 'REG'):
-			    	IPBS = fields [1]
-			    	portBS = fields [2]
-			    	print('{} {} {}'.format(fields[0], IPBS, portBS))
-			    	udp_socket.sendto('RGR OK\n'.encode('ascii'), client_address)
-			 	
-			 	#QUANDO FAZER RGR ERR?????
-			    else:
-			 	    udp_socket.sendto('RGR NOK\n'.encode('ascii'), client_address)
+				if(fields[0] == 'REG'):
+					IPBS = fields [1]
+					portBS = fields [2]
+					print('{} {} {}'.format(fields[0], IPBS, portBS))
+					udp_socket.sendto('RGR OK\n'.encode('ascii'), client_address)
+
+				#QUANDO FAZER RGR ERR?????
+				else:
+					udp_socket.sendto('RGR NOK\n'.encode('ascii'), client_address)
 
 		except socket.error:
 			print('CS failed to trade data with BS')
@@ -75,7 +75,6 @@ if __name__ == "__main__":
 
 		finally:
 			udp_socket.close()
-
 
 	# Parent process running TCP server
 	else:
