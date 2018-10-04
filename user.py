@@ -12,18 +12,22 @@ class User:
 
 	current_user = [] # [username, password]
 
+	
 	def __init__(self, CSname, CSport):
 		self.TCPsocket = None
 		self.CSname = CSname
 		self.CSport = CSport
 
+	
 	def set_currentUser(self, username, password):
 		self.current_user.insert(0, username)
 		self.current_user.insert(1, password)
 
+	
 	def del_currentUser(self, username, password):
 		self.current_user= []
 
+	
 	# Socket related methods
 	def connect(self):
 		try:
@@ -38,6 +42,7 @@ class User:
 			print('User failed to connect')
 			sys.exit(1)
 
+	
 	def sendData(self, data):
 		try:
 			self.TCPsocket.sendall(data.encode('ascii'))
@@ -45,6 +50,7 @@ class User:
 			print('User failed to send data to Central Server')
 			sys.exit(1)
 
+	
 	def receiveData(self, n_bytes):
 		try:
 			return self.TCPsocket.recv(n_bytes).decode()
@@ -52,9 +58,11 @@ class User:
 			print('User failed to receive data from Central Server')
 			sys.exit(1)
 
+	
 	def closeSocket(self):
 		self.TCPsocket.close()
 
+	
 	# Interface related methods
 	def sendAuthentication(self, username, password):
 		self.sendData('AUT {} {}\n'.format(username, password))
@@ -78,6 +86,7 @@ class User:
 			print('Wrong protocol message received from CS')
 			sys.exit(1)
 
+	
 	# E PRECISO FECHAR O SOCKET ANTES DE FAZER SYS.EXIT() ?????????
 	def login(self, username, password):
 		# verify user input
@@ -86,6 +95,7 @@ class User:
 			self.sendAuthentication(username, password)
 			self.closeSocket()
 
+	
 	def deluser(self):
 		self.connect()
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
@@ -109,28 +119,46 @@ class User:
 			print('Wrong protocol message received from CS')
 			sys.exit(1)
 
+	
 	def backupDir(self, dir):
 		self.connect()
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
 
+	
 	def restoreDir(self, dir):
 		self.connect()
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
 
+
 	def dirlist(self):
 		self.connect()
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
+		self.sendData('LSD\n')
+		data = user.receiveData(1024)
+		fields = data.split()
+		CS_response = fields[0]
+		N = int(fields[1])
+
+		for x in range(2,2+N):
+			print('{} '.format(fields[x]))
+
+		user.closeSocket()
+		#TEMOS DE VER SE O LSD É UNSUCCESF
+
 
 	def filelistDir(self, dir):
 		self.connect()
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
 
+	
 	def deleteDir(self, dir):
 		self.connect()
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
 
+	
 	def logout(self):
 		self.del_currentUser()
+
 
 
 if __name__ == "__main__":

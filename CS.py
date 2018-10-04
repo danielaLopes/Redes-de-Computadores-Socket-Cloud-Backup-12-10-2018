@@ -7,6 +7,9 @@ import signal
 
 BUFFER_SIZE = 1024
 
+CSname = 'localhost'#socket.gethostname()
+
+
 class CS:
 
 	BS_commands = ['REG','RGR', 'UNR', 'UAR', 'LSF', 'LFD N', 'LSU', 'LUR', 'DLB', 'DBR']
@@ -15,9 +18,18 @@ class CS:
 	registered_users = {} # username: password
 	current_user = None
 
+
+	# Creating the backup_list file
+	f = open("backup_list.txt", "w")
+	f.write("RC\n")
+	f.write("OLA\n")
+	f.close()
+
+	
 	def __init__(self, CSport):
 		self.CSport = CSport
 
+	
 	# Socket related methods
 	def connect(self):
 		try:
@@ -34,11 +46,14 @@ class CS:
 
 		tcp_socket.listen(5)
 
+		return tcp_socket;
+
+	
 	# Interface related methods
 	def userAuthentication(self, username, password):
 
-		if username in registered_users.keys():
-			if password == registered_users[username]:
+		if username in self.registered_users.keys():
+			if password == self.registered_users[username]:
 				connection.sendall('AUR OK\n'.encode('ascii'))
 				self.current_user = username
 				print('User: "{}"'.format(username))
@@ -51,6 +66,7 @@ class CS:
 			self.current_user = username
 			print('New user: "{}"'.format(username))
 
+	
 	def delUser(self):
 		print(current_user)
 		#if (current_user.information().isempty()):
@@ -62,6 +78,7 @@ class CS:
 			print('This user is not registered')
 		#else:
 			#connection.sendall('DLR NOK\n'.encode('ascii'))
+
 
 
 if __name__ == "__main__":
@@ -127,7 +144,13 @@ if __name__ == "__main__":
 
 	# Parent process running TCP server
 	else:
-		cs.connect()
+		try:
+			tcp_socket = cs.connect()
+		except socket.error:
+			print('CS failed to bind with user')
+			sys.exit(1)
+
+		tcp_socket.listen(5)
 
 		while True:
 			# waits for connection
@@ -147,7 +170,7 @@ if __name__ == "__main__":
 						fields = data.decode().split()
 						command = fields[0]
 
-						if command in user_commands:
+						if command in cs.user_commands:
 							if command == 'AUT':
 								cs.userAuthentication(fields[1], fields[2])
 								logged = True
@@ -156,6 +179,19 @@ if __name__ == "__main__":
 							elif (logged == True):
 								if(command == 'DLU'):
 									cs.delUser()
+
+								elif (command == 'LSD'):
+									f = open("backup_list.txt", "r")
+									N = 0
+									dirnames = ""
+
+									for line in f:
+										N += 1
+										dirnames = dirnames + " " + line
+
+									message = "LDR " + str(N) + " " + dirnames + "\n"
+									connection.sendall(message.encode('ascii'))
+
 								logged = False
 
 							else:
