@@ -94,6 +94,8 @@ class User:
 			self.connect()
 			self.sendAuthentication(username, password)
 			self.closeSocket()
+		else:
+			print('Wrong arguments')
 
 	
 	def deluser(self):
@@ -205,6 +207,7 @@ if __name__ == "__main__":
 
 					elif input_command == 'dirlist':
 						user.dirlist()
+						print(user.current_user[0])
 
 				elif (len(fields) == 2):
 					if input_command == 'backup':
@@ -216,9 +219,15 @@ if __name__ == "__main__":
 					elif input_command == 'delete':
 						user.deleteDir(fields[1])
 
+				else:
+					print('Wrong arguments')
+
 			elif input_command == 'exit' and len(fields) == 1:
 				os._exit(0) #ESTAMOS A USAR A CENA CERTA??
 
+			# Verify the rest of the commands that can have invalid arguments
+			elif input_command == 'login' or input_command == 'exit':
+				print('Wrong arguments')
 			elif user.current_user == []:
 				print('User authentication needed')
 		else:

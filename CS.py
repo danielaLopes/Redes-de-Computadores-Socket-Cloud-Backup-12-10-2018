@@ -16,7 +16,7 @@ class CS:
 	user_commands = ['AUT', 'AUR', 'DLU', 'DLR', 'BCK', 'BKR', 'RST', 'LSD', 'LDR', 'LSF', 'LFD', 'DEL', 'DDR']
 
 	registered_users = {} # username: password
-	current_user = None
+	current_user = None #username
 
 
 	# Creating the backup_list file
@@ -28,26 +28,6 @@ class CS:
 	
 	def __init__(self, CSport):
 		self.CSport = CSport
-
-	
-	# Socket related methods
-	def connect(self):
-		try:
-			tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		except socket.error:
-			print('CS failed to create TCP socket')
-			sys.exit(1)
-
-		try:
-			tcp_socket.bind((CSname, CSport))
-		except socket.error:
-			print('CS failed to bind with user')
-			sys.exit(1)
-
-		tcp_socket.listen(5)
-
-		return tcp_socket;
-
 	
 	# Interface related methods
 	def userAuthentication(self, username, password):
@@ -56,7 +36,7 @@ class CS:
 			if password == self.registered_users[username]:
 				connection.sendall('AUR OK\n'.encode('ascii'))
 				self.current_user = username
-				print('User: "{}"'.format(username))
+				print('User: "{}"'.format(self.current_user))
 			else:
 				connection.sendall('AUR NOK\n'.encode('ascii'))
 				print('Incorrect password')
@@ -64,14 +44,14 @@ class CS:
 			connection.sendall('AUR NEW\n'.encode('ascii'))
 			self.registered_users[username] = password
 			self.current_user = username
-			print('New user: "{}"'.format(username))
+			print('New user: "{}"'.format(self.current_user))
 
 	
 	def delUser(self):
-		print(current_user)
+		print(self.current_user)
 		#if (current_user.information().isempty()):
 		try:
-			del self.registered_users[current_user]
+			del self.registered_users[self.current_user]
 			self.current_user = None
 			connection.sendall('DLR OK\n'.encode('ascii'))
 		except KeyError:
@@ -112,6 +92,8 @@ if __name__ == "__main__":
 			print('CS failed to create UDP socket')
 			sys.exit(1)
 
+		udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
 		try:
 			udp_socket.bind((CSname, CSport))
 		except socket.error:
@@ -145,7 +127,15 @@ if __name__ == "__main__":
 	# Parent process running TCP server
 	else:
 		try:
-			tcp_socket = cs.connect()
+			tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		except socket.error:
+			print('CS failed to create TCP socket')
+			sys.exit(1)
+
+		tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)	
+
+		try:
+			tcp_socket.bind((CSname, CSport))
 		except socket.error:
 			print('CS failed to bind with user')
 			sys.exit(1)
@@ -191,7 +181,6 @@ if __name__ == "__main__":
 
 									message = "LDR " + str(N) + " " + dirnames + "\n"
 									connection.sendall(message.encode('ascii'))
-
 								logged = False
 
 							else:
