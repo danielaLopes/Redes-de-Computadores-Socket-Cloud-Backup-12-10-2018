@@ -151,47 +151,59 @@ if __name__ == "__main__":
 				print('CS failed to establish connection')
 				sys.exit(1)
 
+			# Avoid child process zombies
+			signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+
+			# Creating new process to attend new user requests
 			try:
-				logged = False
-				while True:
-					data = connection.recv(BUFFER_SIZE)
+				pid = os.fork()
+			except OSError:
+				exit('CS was unnable to create child process')
 
-					if data:
-						fields = data.decode().split()
-						command = fields[0]
+			# Child process attending new user, father process continues waiting for new connections with users
+			if pid == 0:
+				print('o filho entrou')
+				try:
+					logged = False
+					while True:
+						data = connection.recv(BUFFER_SIZE)
 
-						if command in cs.user_commands:
-							if command == 'AUT':
-								cs.userAuthentication(fields[1], fields[2])
-								logged = True
+						if data:
+							fields = data.decode().split()
+							command = fields[0]
 
-							#LEMBRAR DE NO FIM DE CADA SESSAO TCP APAGAR current_user
-							elif (logged == True):
-								if(command == 'DLU'):
-									cs.delUser()
+							if command in cs.user_commands:
+								if command == 'AUT':
+									cs.userAuthentication(fields[1], fields[2])
+									logged = True
 
-								elif (command == 'LSD'):
-									f = open("backup_list.txt", "r")
-									N = 0
-									dirnames = ""
+								#LEMBRAR DE NO FIM DE CADA SESSAO TCP APAGAR current_user
+								elif (logged == True):
+									if(command == 'DLU'):
+										cs.delUser()
 
-									for line in f:
-										N += 1
-										dirnames = dirnames + " " + line
+									elif (command == 'LSD'):
+										f = open("backup_list.txt", "r")
+										N = 0
+										dirnames = ""
 
-									message = "LDR " + str(N) + " " + dirnames + "\n"
-									connection.sendall(message.encode('ascii'))
-								logged = False
+										for line in f:
+											N += 1
+											dirnames = dirnames + " " + line
 
+										message = "LDR " + str(N) + " " + dirnames + "\n"
+										connection.sendall(message.encode('ascii'))
+									logged = False
+
+								else:
+									print('User authentication needed')
 							else:
-								print('User authentication needed')
+								connection.sendall('ERR\n'.encode('ascii'))
+								sys.exit(1)
 						else:
-							connection.sendall('ERR\n'.encode('ascii'))
-							sys.exit(1)
-					else:
-						break
-			except socket.error:
-				print('CS failed to trade data with user')
-				sys.exit(1)
-			finally:
-				connection.close()
+							break
+				except socket.error:
+					print('CS failed to trade data with user')
+					sys.exit(1)
+				finally:
+					connection.close()
