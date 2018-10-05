@@ -92,6 +92,7 @@ if __name__ == "__main__":
 			print('CS failed to create UDP socket')
 			sys.exit(1)
 
+		# Reuse port
 		udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 		try:
@@ -100,22 +101,24 @@ if __name__ == "__main__":
 			print('CS failed to bind with BS')
 			sys.exit(1)
 
-		print('Waiting for a connection with a BS')
 		try:
-			data, client_address = udp_socket.recvfrom(BUFFER_SIZE)
+			# Runs server indefinitely to attend BS registrations
+			while True:
+				print('Waiting for a connection with a BS')
+				data, client_address = udp_socket.recvfrom(BUFFER_SIZE)
+					
+				if data:
+					fields = data.decode().split()
 
-			if data:
-				fields = data.decode().split()
+					if(fields[0] == 'REG'):
+						IPBS = fields [1]
+						portBS = fields [2]
+						print('{} {} {}'.format(fields[0], IPBS, portBS))
+						udp_socket.sendto('RGR OK\n'.encode('ascii'), client_address)
 
-				if(fields[0] == 'REG'):
-					IPBS = fields [1]
-					portBS = fields [2]
-					print('{} {} {}'.format(fields[0], IPBS, portBS))
-					udp_socket.sendto('RGR OK\n'.encode('ascii'), client_address)
-
-				#QUANDO FAZER RGR ERR?????
-				else:
-					udp_socket.sendto('RGR NOK\n'.encode('ascii'), client_address)
+					#QUANDO FAZER RGR ERR?????
+					else:
+						udp_socket.sendto('RGR NOK\n'.encode('ascii'), client_address)
 
 		except socket.error:
 			print('CS failed to trade data with BS')
@@ -132,6 +135,7 @@ if __name__ == "__main__":
 			print('CS failed to create TCP socket')
 			sys.exit(1)
 
+		# Reuse port
 		tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)	
 
 		try:
@@ -142,8 +146,9 @@ if __name__ == "__main__":
 
 		tcp_socket.listen(5)
 
+		# Runs server indefinitely to attend user requests
 		while True:
-			# waits for connection
+			# waits for connection with an user
 			print('Waiting for a connection with an user')
 			try:
 				connection, client_addr = tcp_socket.accept()
