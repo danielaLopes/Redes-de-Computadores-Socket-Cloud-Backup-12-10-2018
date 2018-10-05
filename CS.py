@@ -18,21 +18,22 @@ class CS:
 	registered_users = {} # username: password
 	current_user = None #username
 
-
-	# Creating the backup_list file
-	f = open("backup_list.txt", "w")
-	f.write("RC\n")
-	f.write("OLA\n")
-	f.close()
-
 	
 	def __init__(self, CSport):
 		self.CSport = CSport
 	
-	# Interface related methods
-	def userAuthentication(self, username, password):
 
-		if username in self.registered_users.keys():
+	def createBackupFile(self):
+		# Creating the backup_list file
+		f = open("backup_list.txt", "w")
+		f.write("RC\n")
+		f.write("OLA\n")
+		f.close()
+
+
+	# Interface related methods
+	def userAuthentication(self, connection, username, password):
+		if username in self.registered_users:
 			if password == self.registered_users[username]:
 				connection.sendall('AUR OK\n'.encode('ascii'))
 				self.current_user = username
@@ -41,13 +42,17 @@ class CS:
 				connection.sendall('AUR NOK\n'.encode('ascii'))
 				print('Incorrect password')
 		else:
+			print('username: "{}"'.format(username))
 			connection.sendall('AUR NEW\n'.encode('ascii'))
 			self.registered_users[username] = password
 			self.current_user = username
 			print('New user: "{}"'.format(self.current_user))
 
+			for x, y in self.registered_users.items():
+				print('username: {} pass: {}'.format(username, password))
+
 	
-	def delUser(self):
+	def delUser(self, connection):
 		print(self.current_user)
 		#if (current_user.information().isempty()):
 		try:
@@ -57,35 +62,24 @@ class CS:
 		except KeyError:
 			print('This user is not registered')
 		#else:
-			#connection.sendall('DLR NOK\n'.encode('ascii'))
+			#connection.sendall('DLR NOK\n'.encode('ascii')
+
+
+	def dirList(self, connection):
+		f = open("backup_list.txt", "r")
+		N = 0
+		dirnames = ""
+
+		for line in f:
+			N += 1
+			dirnames = dirnames + " " + line
+
+		message = "LDR " + str(N) + " " + dirnames + "\n"
+		connection.sendall(message.encode('ascii'))
 
 
 
-if __name__ == "__main__":
-
-	# Parse argument
-	parser = argparse.ArgumentParser()
-	parser.add_argument('-p', action='store', metavar='CSport', type=int, required=False, default=58018,
-	help='CSport is the well-known port where the CS server accepts user requests, in  TCP. \
-	This  is  an  optional  argument.  If  omitted,  it  assumes  the  value 58000+GN, where\
-	GN is the group number.')
-
-	FLAG = parser.parse_args()
-	CSport = FLAG.p
-
-	cs = CS(CSport)
-
-	# Avoid child process zombies
-	signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-
-	# Creating new process to run UDP server
-	try:
-		pid = os.fork()
-	except OSError:
-		exit('CS was unnable to create child process')
-
-	# Child process running UDP server
-	if pid == 0:
+	def udp_connect(self):
 		try:
 			udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		except socket.error:
@@ -100,6 +94,13 @@ if __name__ == "__main__":
 		except socket.error:
 			print('CS failed to bind with BS')
 			sys.exit(1)
+
+		return udp_socket
+
+
+
+	def udp_server(self):
+		udp_socket = self.udp_connect()
 
 		try:
 			# Runs server indefinitely to attend BS registrations
@@ -127,8 +128,8 @@ if __name__ == "__main__":
 		finally:
 			udp_socket.close()
 
-	# Parent process running TCP server
-	else:
+
+	def tcp_connect(self):
 		try:
 			tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		except socket.error:
@@ -146,15 +147,69 @@ if __name__ == "__main__":
 
 		tcp_socket.listen(5)
 
+		return tcp_socket
+
+
+	def tcp_accept(self, tcp_socket):
+		# waits for connection with an user
+		print('Waiting for a connection with an user')
+		try:
+			connection, client_addr = tcp_socket.accept()
+		except socket.error:
+			print('CS failed to establish connection')
+			sys.exit(1)
+
+		return connection, client_addr
+
+
+
+	def userRequest(self, connection):
+		try:
+			logged = False
+
+			while True:
+				data = connection.recv(BUFFER_SIZE)
+
+				if data:
+					fields = data.decode().split()
+					command = fields[0]
+
+					if command in self.user_commands:
+						if command == 'AUT':
+							self.userAuthentication(connection,fields[1], fields[2])
+							logged = True
+
+						#LEMBRAR DE NO FIM DE CADA SESSAO TCP APAGAR current_user
+						elif (logged == True):
+							if(command == 'DLU'):
+								self.delUser(connection)
+
+							elif (command == 'LSD'):
+								self.dirList(connection)
+							logged = False
+
+						else:
+							print('User authentication needed')
+					else:
+						connection.sendall('ERR\n'.encode('ascii'))
+						sys.exit(1)
+				else:
+					break	
+		except socket.error:
+			print('CS failed to trade data with user')
+			sys.exit(1)
+		
+		finally:
+			connection.close()
+
+
+	
+	def tcp_server(self):
+		tcp_socket = self.tcp_connect()	
+
 		# Runs server indefinitely to attend user requests
 		while True:
-			# waits for connection with an user
-			print('Waiting for a connection with an user')
-			try:
-				connection, client_addr = tcp_socket.accept()
-			except socket.error:
-				print('CS failed to establish connection')
-				sys.exit(1)
+			connection, client_addr = self.tcp_accept(tcp_socket)
 
 			# Avoid child process zombies
 			signal.signal(signal.SIGCHLD, signal.SIG_IGN)
@@ -167,48 +222,37 @@ if __name__ == "__main__":
 
 			# Child process attending new user, father process continues waiting for new connections with users
 			if pid == 0:
-				print('o filho entrou')
-				try:
-					logged = False
-					while True:
-						data = connection.recv(BUFFER_SIZE)
+				self.userRequest(connection)
 
-						if data:
-							fields = data.decode().split()
-							command = fields[0]
 
-							if command in cs.user_commands:
-								if command == 'AUT':
-									cs.userAuthentication(fields[1], fields[2])
-									logged = True
 
-								#LEMBRAR DE NO FIM DE CADA SESSAO TCP APAGAR current_user
-								elif (logged == True):
-									if(command == 'DLU'):
-										cs.delUser()
+if __name__ == "__main__":
 
-									elif (command == 'LSD'):
-										f = open("backup_list.txt", "r")
-										N = 0
-										dirnames = ""
+	# Parse argument
+	parser = argparse.ArgumentParser()
+	parser.add_argument('-p', action='store', metavar='CSport', type=int, required=False, default=58018,
+	help='CSport is the well-known port where the CS server accepts user requests, in  TCP. \
+	This  is  an  optional  argument.  If  omitted,  it  assumes  the  value 58000+GN, where\
+	GN is the group number.')
 
-										for line in f:
-											N += 1
-											dirnames = dirnames + " " + line
+	FLAG = parser.parse_args()
+	CSport = FLAG.p
 
-										message = "LDR " + str(N) + " " + dirnames + "\n"
-										connection.sendall(message.encode('ascii'))
-									logged = False
+	cs = CS(CSport)
+	cs.createBackupFile()
+	# Avoid child process zombies
+	signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
-								else:
-									print('User authentication needed')
-							else:
-								connection.sendall('ERR\n'.encode('ascii'))
-								sys.exit(1)
-						else:
-							break
-				except socket.error:
-					print('CS failed to trade data with user')
-					sys.exit(1)
-				finally:
-					connection.close()
+	# Creating new process to run UDP server
+	try:
+		pid = os.fork()
+	except OSError:
+		exit('CS was unnable to create child process')
+
+	# Child process running UDP server
+	if pid == 0:
+		cs.udp_server()
+
+	# Parent process running TCP server
+	else:
+		cs.tcp_server()

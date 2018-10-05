@@ -134,7 +134,7 @@ class User:
 
 	def dirlist(self):
 		self.connect()
-		self.sendAuthentication(user.current_user[0], user.current_user[1])
+		self.sendAuthentication(self.current_user[0], self.current_user[1])
 		self.sendData('LSD\n')
 		data = user.receiveData(1024)
 		fields = data.split()
