@@ -31,26 +31,37 @@ class CS:
 		f.write("OLA\n")
 		f.close()
 
+		f = open("cs_users.txt", "w")
+		f.close()
 
-	# Interface related methods
-	def userAuthentication(self, connection, username, password):
-		if username in self.registered_users:
-			if password == self.registered_users[username]:
+
+	def userAuthentication(self, connection, username, password):		
+		user_file = open("cs_users.txt", "r")
+		founded = False
+
+		for line in user_file:
+			if username in line:
+				values = line.split()
+				founded = True
+		user_file.close()
+
+		if founded == True:
+			if values[1] == password: # user exists and password is correct
 				connection.sendall('AUR OK\n'.encode('ascii'))
 				self.current_user = username
 				print('User: "{}"'.format(self.current_user))
-			else:
+
+			else:  # incorrect password
 				connection.sendall('AUR NOK\n'.encode('ascii'))
 				print('Incorrect password')
-		else:
-			print('username: "{}"'.format(username))
+
+		else: # new user
+			with open("cs_users.txt", "a") as myfile:
+				myfile.write('{} {} \n'.format(username, password))
+
 			connection.sendall('AUR NEW\n'.encode('ascii'))
-			self.registered_users[username] = password
 			self.current_user = username
 			print('New user: "{}"'.format(self.current_user))
-
-			for x, y in self.registered_users.items():
-				print('username: {} pass: {}'.format(username, password))
 
 	
 	def delUser(self, connection):
