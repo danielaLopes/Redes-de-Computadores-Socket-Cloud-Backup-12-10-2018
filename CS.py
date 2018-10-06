@@ -21,6 +21,7 @@ class CS:
 	
 	def __init__(self, CSport):
 		self.CSport = CSport
+		self.tcp_socket = None
 	
 
 	def createBackupFile(self):
@@ -131,30 +132,28 @@ class CS:
 
 	def tcp_connect(self):
 		try:
-			tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		except socket.error:
 			print('CS failed to create TCP socket')
 			sys.exit(1)
 
 		# Reuse port
-		tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)	
+		self.tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)	
 
 		try:
-			tcp_socket.bind((CSname, CSport))
+			self.tcp_socket.bind((CSname, CSport))
 		except socket.error:
 			print('CS failed to bind with user')
 			sys.exit(1)
 
-		tcp_socket.listen(5)
-
-		return tcp_socket
+		self.tcp_socket.listen(5)
 
 
-	def tcp_accept(self, tcp_socket):
+	def tcp_accept(self):
 		# waits for connection with an user
 		print('Waiting for a connection with an user')
 		try:
-			connection, client_addr = tcp_socket.accept()
+			connection, client_addr = self.tcp_socket.accept()
 		except socket.error:
 			print('CS failed to establish connection')
 			sys.exit(1)
@@ -205,11 +204,11 @@ class CS:
 
 	
 	def tcp_server(self):
-		tcp_socket = self.tcp_connect()	
+		self.tcp_connect()	
 
 		# Runs server indefinitely to attend user requests
 		while True:
-			connection, client_addr = self.tcp_accept(tcp_socket)
+			connection, client_addr = self.tcp_accept()
 
 			# Avoid child process zombies
 			signal.signal(signal.SIGCHLD, signal.SIG_IGN)
@@ -243,6 +242,13 @@ if __name__ == "__main__":
 	# Avoid child process zombies
 	signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
+
+	def sig_handler(sig, frame):
+		cs.tcp_socket.close()
+		print("close")
+	signal.signal(signal.SIGINT, sig_handler)
+
+	
 	# Creating new process to run UDP server
 	try:
 		pid = os.fork()
@@ -252,7 +258,6 @@ if __name__ == "__main__":
 	# Child process running UDP server
 	if pid == 0:
 		cs.udp_server()
-
 	# Parent process running TCP server
 	else:
 		cs.tcp_server()
