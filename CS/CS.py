@@ -24,6 +24,7 @@ class CS:
 		self.tcp_socket = None
 	
 
+	# User communication methods
 	def createBackupFile(self):
 		# Creating the backup_list file
 		f = open("backup_list.txt", "w")
@@ -91,6 +92,14 @@ class CS:
 			print('This user is not registered')
 
 
+	def backupDir(self):
+		print('ola')
+
+
+	def restoreDir(self):
+		print('ola')
+
+
 	def dirList(self, connection):
 		f = open("backup_list.txt", "r")
 		N = 0
@@ -104,7 +113,15 @@ class CS:
 		connection.sendall(message.encode('ascii'))
 
 
+	def filelistDir(self):
+		print('ola')
 
+
+	def deleteDir(self):
+		print('ola')
+
+
+	# Socket related methods
 	def udp_connect(self):
 		try:
 			udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -199,21 +216,56 @@ class CS:
 					command = fields[0]
 
 					if command in self.user_commands:
-						if command == 'AUT':
-							self.userAuthentication(connection,fields[1], fields[2])
-							logged = True
+						# login
+						if len(fields) == 3:
+							if command == 'AUT': # CS response: AUR status
+								self.userAuthentication(connection,fields[1], fields[2])
+								logged = True
 
-						#LEMBRAR DE NO FIM DE CADA SESSAO TCP APAGAR current_user
-						elif (logged == True):
-							if(command == 'DLU'):
-								self.delUser(connection)
+							# backup dir
+							elif command == 'BCK': # CS response: BKR IPBS portBS N (filename date_time size)*
+								if logged == True:
+									self.backupDir()
+									logged = False
+								# else
 
-							elif (command == 'LSD'):
-								self.dirList(connection)
-							logged = False
+							else:
+								connection.sendall('ERR\n'.encode('ascii'))
+								sys.exit(1)
 
-						else:
-							print('User authentication needed')
+						elif len(fields) == 1:
+							if logged == True:
+								# deluser
+								if command == 'DLU': # CS response: DLR status
+									self.delUser(connection)
+
+								# dirlist
+								elif command == 'LSD': # CS response: LDR N (dirname)*
+									self.dirList(connection)
+
+								else:
+									connection.sendall('ERR\n'.encode('ascii'))
+									sys.exit(1)
+
+								logged = False
+							
+						elif len(fields) == 2:
+							if logged == True:
+								# restore dir
+								if command == 'RST': # CS response: RSR IPBS portBS
+								    self.restoreDir()
+								# filelist dir
+								elif command == 'LSF': # CS response: LFD BSip BSport N (filename date_time size)*
+								    self.filelistDir()
+								# del dir
+								elif command == 'DEL': # CS response: DDR status
+								    self.deleteDir()
+
+								else:
+									connection.sendall('ERR\n'.encode('ascii'))
+									sys.exit(1)
+
+								logged = False
 					else:
 						connection.sendall('ERR\n'.encode('ascii'))
 						sys.exit(1)

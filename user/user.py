@@ -140,12 +140,15 @@ class User:
 		fields = data.split()
 		CS_response = fields[0]
 		N = int(fields[1])
-
-		for x in range(2,2+N):
-			print('{} '.format(fields[x]))
-
 		user.closeSocket()
-		#TEMOS DE VER SE O LSD É UNSUCCESF
+
+		if CS_response == 'LDR':
+			for x in range(2,2+N):
+				print('{} '.format(fields[x]))
+
+		else:
+			print('Wrong protocol message received from CS')
+			sys.exit(1)
 
 
 	def filelistDir(self, dir):
@@ -156,6 +159,13 @@ class User:
 	def deleteDir(self, dir):
 		self.connect()
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
+		self.sendData('DEL {}\n'.format(dir))
+		data = user.receiveData(1024)
+		fields = data.split()
+		CS_response = fields[0]
+		N = int(fields[1])
+		user.closeSocket()
+
 
 	
 	def logout(self):
@@ -196,7 +206,11 @@ if __name__ == "__main__":
 			if (len(fields) == 3):
 				if input_command == 'login':
 					user.login(fields[1], fields[2]);
-			#User input commands in which login is needed
+			
+			elif input_command == 'exit' and len(fields) == 1:
+				sys.exit(0) #ESTAMOS A USAR A CENA CERTA??
+
+			# User input commands in which login is needed
 			elif user.current_user != []:
 				if (len(fields) == 1):
 					if input_command == 'deluser':
@@ -221,9 +235,6 @@ if __name__ == "__main__":
 
 				else:
 					print('Wrong arguments')
-
-			elif input_command == 'exit' and len(fields) == 1:
-				os._exit(0) #ESTAMOS A USAR A CENA CERTA??
 
 			# Verify the rest of the commands that can have invalid arguments
 			elif input_command == 'login' or input_command == 'exit':
