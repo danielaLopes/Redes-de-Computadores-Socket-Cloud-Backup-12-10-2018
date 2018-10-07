@@ -24,7 +24,7 @@ class User:
 		self.current_user.insert(1, password)
 
 	
-	def del_currentUser(self, username, password):
+	def del_currentUser(self):
 		self.current_user= []
 
 	
