@@ -4,6 +4,7 @@ import argparse
 import os
 import multiprocessing
 import signal
+import random
 
 BUFFER_SIZE = 1024
 
@@ -17,11 +18,11 @@ class CS:
 
 	current_user = None #username
 
-	
+
 	def __init__(self, CSport):
 		self.CSport = CSport
 		self.tcp_socket = None
-	
+
 
 	# User communication methods
 	#NAO ESQUECER DE IMPRIMIR AS INFORMACOES DO USER!!!!!!!!!!
@@ -35,7 +36,7 @@ class CS:
 			except IOError:
 				print('Not possible to create availableBS.txt')
 
-	def userAuthentication(self, connection, username, password):		
+	def userAuthentication(self, connection, username, password):
 		filename = "user_" + username + ".txt";
 		try:
 			#checks if file exists in given path
@@ -51,7 +52,7 @@ class CS:
 				else:
 					connection.sendall('AUR NOK\n'.encode('ascii'))
 					print('Incorrect password')
-			
+
 			else:
 				# Create new file for new user
 				userFile = open(filename, 'w+')
@@ -63,7 +64,7 @@ class CS:
 					os.mkdir('user_' + username)
 				except OSError:
 					print('Not possible to create directory for this user')
-				
+
 				self.current_user = username
 				connection.sendall('AUR NEW\n'.encode('ascii'))
 				print('New user: "{}"'.format(self.current_user))
@@ -71,7 +72,7 @@ class CS:
 		except IOError:
 			print('It was not possible to open the requested file')
 
-	
+
 	def delUser(self, connection):
 		filename = 'user_' + self.current_user + '.txt'
 		empty = False
@@ -101,7 +102,19 @@ class CS:
 		dirlist = os.listdir(userPath)
 
 		if dir not in dirlist:
-			print('OLA')
+			availableBS = open("availableBS.txt", "r")
+			BSs = availableBS.readlines()
+			BS = random.choice(BSs).split()
+
+			try:
+				udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+				udp_socket.sendTo('LSU\n', (BS[0], BS[1]))
+				udp_socket.close()
+			except socket.error:
+				print('CS failed to create UDP socket')
+				sys.exit(1)
+
+
 
 	def restoreDir(self):
 		print('ola')
@@ -157,7 +170,7 @@ class CS:
 			while True:
 				print('Waiting for a connection with a BS')
 				data, client_address = udp_socket.recvfrom(BUFFER_SIZE)
-					
+
 				if data:
 					fields = data.decode().split()
 
@@ -196,7 +209,7 @@ class CS:
 			sys.exit(1)
 
 		# Reuse port
-		self.tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)	
+		self.tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 		try:
 			self.tcp_socket.bind((CSname, CSport))
@@ -264,7 +277,7 @@ class CS:
 									sys.exit(1)
 
 								logged = False
-							
+
 						elif len(fields) == 2:
 							if logged == True:
 								# restore dir
@@ -286,18 +299,18 @@ class CS:
 						connection.sendall('ERR\n'.encode('ascii'))
 						sys.exit(1)
 				else:
-					break	
+					break
 		except socket.error:
 			print('CS failed to trade data with user')
 			sys.exit(1)
-		
+
 		finally:
 			connection.close()
 
 
-	
+
 	def tcp_server(self):
-		self.tcp_connect()	
+		self.tcp_connect()
 
 		# Runs server indefinitely to attend user requests
 		while True:
@@ -341,7 +354,7 @@ if __name__ == "__main__":
 		print("close")
 	signal.signal(signal.SIGINT, sig_handler)
 
-	
+
 	# Creating new process to run UDP server
 	try:
 		pid = os.fork()
