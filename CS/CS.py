@@ -15,7 +15,6 @@ class CS:
 	BS_commands = ['REG','RGR', 'UNR', 'UAR', 'LSF', 'LFD N', 'LSU', 'LUR', 'DLB', 'DBR']
 	user_commands = ['AUT', 'AUR', 'DLU', 'DLR', 'BCK', 'BKR', 'RST', 'LSD', 'LDR', 'LSF', 'LFD', 'DEL', 'DDR']
 
-	registered_users = {} # username: password
 	current_user = None #username
 
 	
@@ -25,12 +24,16 @@ class CS:
 	
 
 	# User communication methods
+	#NAO ESQUECER DE IMPRIMIR AS INFORMACOES DO USER!!!!!!!!!!
 	def createBackupFile(self):
-		# Creating the backup_list file
-		f = open("backup_list.txt", "w")
-		f.write("RC\n")
-		f.write("OLA\n")
-		f.close()
+		# If this file was not created yet, the CS creates it
+		if not os.path.isfile('availableBS.txt'):
+			try:
+				# Overwrites existing file with this name
+				availableBS = open('availableBS.txt', 'w')
+				availableBS.close()
+			except IOError:
+				print('Not possible to create availableBS.txt')
 
 	def userAuthentication(self, connection, username, password):		
 		filename = "user_" + username + ".txt";
@@ -98,7 +101,7 @@ class CS:
 		dirlist = os.listdir(userPath)
 
 		if dir not in dirlist:
-
+			print('OLA')
 
 	def restoreDir(self):
 		print('ola')
@@ -158,9 +161,18 @@ class CS:
 				if data:
 					fields = data.decode().split()
 
-					if(fields[0] == 'REG'):
+					if fields[0] == 'REG' and len(fields) == 3:
 						IPBS = fields [1]
 						portBS = fields [2]
+
+						# Register all available BS in a file
+						try:
+							availableBS = open('availableBS.txt', 'a+')
+							availableBS.write('{} {} A\n'.format(IPBS, portBS)) # A for available
+							availableBS.close()
+						except IOError:
+							print('Not possible to append information in availableBS.txt')
+
 						print('{} {} {}'.format(fields[0], IPBS, portBS))
 						udp_socket.sendto('RGR OK\n'.encode('ascii'), client_address)
 
