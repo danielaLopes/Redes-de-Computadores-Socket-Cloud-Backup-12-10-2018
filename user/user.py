@@ -125,6 +125,17 @@ class User:
 	def backupDir(self, dir):
 		self.connect()
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
+		dirPath = os.getcwd() + "/" + dir
+		dirFiles = os.listdir(dirPath)
+		fileInf = ""
+
+		for file in dirFiles:
+			fileInf = fileInf + " " + file + " " + time.strftime('%m.%d.%Y %H:%M:%S',
+			time.gmtime(os.path.getmtime(dirPath + "/" + file))) + " " + str(int(os.stat(dirPath + "/" + file).st_size))
+
+		message = "BCK " + dir + " " + str(len(dirFiles)) + fileInf + "\n"
+		self.sendData(message)
+		data = user.receiveData(1024)
 
 	
 	def restoreDir(self, dir):

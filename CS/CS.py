@@ -92,8 +92,12 @@ class CS:
 			print('This user is not registered')
 
 
-	def backupDir(self):
-		print('ola')
+	def backupDir(self, connection, dir, N):
+		user = self.current_user
+		userPath = os.getcwd() + "/user_" + user
+		dirlist = os.listdir(userPath)
+
+		if dir not in dirlist:
 
 
 	def restoreDir(self):
@@ -225,7 +229,7 @@ class CS:
 							# backup dir
 							elif command == 'BCK': # CS response: BKR IPBS portBS N (filename date_time size)*
 								if logged == True:
-									self.backupDir()
+									self.backupDir(connection, fields[1], fields[2])
 									logged = False
 								# else
 
