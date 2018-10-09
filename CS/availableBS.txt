@@ -1,1 +1,3 @@
 localhost 59000 A
+localhost 59000 A
+localhost 59001 A

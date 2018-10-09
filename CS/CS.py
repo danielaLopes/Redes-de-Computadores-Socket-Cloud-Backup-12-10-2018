@@ -8,7 +8,7 @@ import random
 
 BUFFER_SIZE = 1024
 
-CSname = 'localhost'#socket.gethostname()
+CSname = socket.gethostname()
 
 
 class CS:

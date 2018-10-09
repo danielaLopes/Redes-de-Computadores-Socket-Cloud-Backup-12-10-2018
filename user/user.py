@@ -2,6 +2,7 @@ import socket
 import sys
 import argparse
 import os
+import time
 
 BUFFER_SIZE = 1024
 
@@ -136,8 +137,13 @@ class User:
 
 		message = "BCK " + dir + " " + str(len(dirFiles)) + fileInf + "\n"
 		self.sendData(message)
-		data = user.receiveData(1024)
+		data = user.receiveData(1024).split()
+		self.closeSocket()
 
+		if data[0] == 'BKR':
+			print('backup to: {} {}'.format(data[1], data[2]))
+
+		#FALAR COM O BS
 	
 	def restoreDir(self, dir):
 		self.connect()
@@ -148,12 +154,20 @@ class User:
 		self.connect()
 		self.sendAuthentication(self.current_user[0], self.current_user[1])
 		self.sendData('LSD\n')
-		
-		data = user.receiveData(1024)
+		data = ""
+
+		while True:
+
+			tempdata = user.receiveData(1024)
+			if not tempdata:
+				break
+			data += tempdata
+
 		fields = data.split()
 		CS_response = fields[0]
 		N = int(fields[1])
 		self.closeSocket()
+
 
 		if CS_response == 'LDR':
 			for x in range(2,2+N):
