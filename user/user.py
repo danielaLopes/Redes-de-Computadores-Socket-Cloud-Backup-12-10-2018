@@ -30,7 +30,7 @@ class User:
 
 	
 	# Socket related methods
-	def connect(self):
+	def connect(self, address): #address is a tuple with the name and port of the tcp server
 		try:
 			self.TCPsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		except socket.error:
@@ -38,7 +38,7 @@ class User:
 			sys.exit(1)
 
 		try:
-			self.TCPsocket.connect((CSname, CSport))
+			self.TCPsocket.connect(address)
 		except socket.error:
 			print('User failed to connect')
 			sys.exit(1)
@@ -92,7 +92,7 @@ class User:
 	def login(self, username, password):
 		# verify user input
 		if len(username) == 5 and int(username) and len(password) == 8 and str.isalnum(password):
-			self.connect()
+			self.connect((self.CSname, self.CSport))
 			self.sendAuthentication(username, password)
 			self.closeSocket()
 		else:
@@ -100,7 +100,7 @@ class User:
 
 	
 	def deluser(self):
-		self.connect()
+		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
 		self.sendData('DLU\n')
 		data = self.receiveData(1024)
@@ -124,7 +124,7 @@ class User:
 
 	
 	def backupDir(self, dir):
-		self.connect()
+		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
 		
 		dirPath = os.getcwd() + "/" + dir
@@ -146,12 +146,12 @@ class User:
 		#FALAR COM O BS
 	
 	def restoreDir(self, dir):
-		self.connect()
+		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
 
 
 	def dirlist(self):
-		self.connect()
+		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(self.current_user[0], self.current_user[1])
 		self.sendData('LSD\n')
 		data = ""
@@ -179,12 +179,12 @@ class User:
 
 
 	def filelistDir(self, dir):
-		self.connect()
+		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
 
 	
 	def deleteDir(self, dir):
-		self.connect()
+		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
 		self.sendData('DEL {}\n'.format(dir))
 		data = user.receiveData(1024)
