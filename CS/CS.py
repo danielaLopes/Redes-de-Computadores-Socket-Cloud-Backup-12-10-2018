@@ -300,6 +300,11 @@ class CS:
 									sys.exit(1)
 
 								logged = False
+
+						else:
+							connection.sendall('ERR\n'.encode('ascii'))
+							sys.exit(1)
+
 					else:
 						connection.sendall('ERR\n'.encode('ascii'))
 						sys.exit(1)
@@ -311,7 +316,6 @@ class CS:
 
 		finally:
 			connection.close()
-
 
 
 	def tcp_server(self):
@@ -334,7 +338,11 @@ class CS:
 			if pid == 0:
 				self.userRequest(connection)
 
-
+		
+	def sig_handler(self, sig, frame):
+		cs.tcp_socket.close()
+		print("close")
+		signal.signal(signal.SIGINT, sig_handler)
 
 if __name__ == "__main__":
 
@@ -350,15 +358,9 @@ if __name__ == "__main__":
 
 	cs = CS(CSport)
 	cs.createBackupFile()
+
 	# Avoid child process zombies
 	signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-
-
-	def sig_handler(sig, frame):
-		cs.tcp_socket.close()
-		print("close")
-	signal.signal(signal.SIGINT, sig_handler)
-
 
 	# Creating new process to run UDP server
 	try:
