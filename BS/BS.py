@@ -64,9 +64,11 @@ if __name__ == "__main__":
 			udp_socket.sendto(('{} {} {}\n'.format('REG', BSname, BSport)).encode(), CS_server_address)
 			# receive response
 			data, server = udp_socket.recvfrom(BUFFER_SIZE)
+			
 			fields = data.decode().split();
 			command = fields[0]
 			status = fields[1]
+			
 			if data and command == 'RGR':
 				if status == 'OK':
 					print(data.decode())

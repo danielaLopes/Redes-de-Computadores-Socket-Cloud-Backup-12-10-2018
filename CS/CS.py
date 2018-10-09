@@ -36,6 +36,7 @@ class CS:
 			except IOError:
 				print('Not possible to create availableBS.txt')
 
+	
 	def userAuthentication(self, connection, username, password):
 		filename = "user_" + username + ".txt";
 		try:
@@ -121,15 +122,19 @@ class CS:
 
 
 	def dirList(self, connection):
-		f = open("backup_list.txt", "r")
-		N = 0
-		dirnames = ""
+		#ir à diretoria do user e percorrer os nomes das diretorias
+		dirNames = os.listdir('.'+'/user_'+ self.current_user)
+		message = "LDR"
 
-		for line in f:
-			N += 1
-			dirnames = dirnames + " " + line
+		if not dirNames:
+			message += " 0\n"	
+		else:
+			message += " " + str(len(dirNames))
 
-		message = "LDR " + str(N) + " " + dirnames + "\n"
+			for dir in dirNames:
+				message += " " + dir
+			message += "\n"
+
 		connection.sendall(message.encode('ascii'))
 
 

@@ -125,6 +125,7 @@ class User:
 	def backupDir(self, dir):
 		self.connect()
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
+		
 		dirPath = os.getcwd() + "/" + dir
 		dirFiles = os.listdir(dirPath)
 		fileInf = ""
@@ -147,11 +148,12 @@ class User:
 		self.connect()
 		self.sendAuthentication(self.current_user[0], self.current_user[1])
 		self.sendData('LSD\n')
+		
 		data = user.receiveData(1024)
 		fields = data.split()
 		CS_response = fields[0]
 		N = int(fields[1])
-		user.closeSocket()
+		self.closeSocket()
 
 		if CS_response == 'LDR':
 			for x in range(2,2+N):
@@ -232,7 +234,6 @@ if __name__ == "__main__":
 
 					elif input_command == 'dirlist':
 						user.dirlist()
-						print(user.current_user[0])
 
 				elif (len(fields) == 2):
 					if input_command == 'backup':
