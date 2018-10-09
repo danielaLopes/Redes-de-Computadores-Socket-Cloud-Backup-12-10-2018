@@ -47,6 +47,54 @@ class BS:
 			print('It was not possible to open the requested file')
 
 
+	def userRequest(self, connection):
+		try:
+			logged = False
+
+			while True:
+				data = connection.recv(BUFFER_SIZE)
+
+				if data:
+					fields = data.decode().split()
+					command = fields[0]
+
+					if command in self.user_commands:
+						if len(fields) == 3:
+							if command == 'AUT':
+								self.userAuthentication(connection, fields[1], fields[2])
+								logged = True
+
+						elif len(fields) == 2:
+							if logged == True:
+								# restore dir
+								if command == 'RSB':
+									self.restoreDir(connection, fields[1])
+
+									logged = False
+
+								else:
+									connection.sendall('ERR\n'.encode('ascii'))
+									sys.exit(1)
+
+						#FALTA UPL
+						else:
+							connection.sendall('ERR\n'.encode('ascii'))
+							sys.exit(1)
+
+					else:
+						connection.sendall('ERR\n'.encode('ascii'))
+						sys.exit(1)
+				else:
+					break
+
+		except socket.error:
+			print('BS failed to trade data with user')
+			sys.exit(1)
+
+		finally:
+			connection.close()
+
+
 	def tcp_connect(self):
 		try:
 			self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -78,55 +126,6 @@ class BS:
 		return connection, client_addr
 
 
-	def userRequest(self, connection):
-		try:
-			logged = False
-
-			while True:
-				data = connection.recv(BUFFER_SIZE)
-
-				if data:
-					fields = data.decode().split()
-					command = fields[0]
-
-					if command in self.user_commands:
-						print('command')
-						if len(fields) == 3:
-		 					if command == 'AUT':
-								self.userAuthentication(connection, fields[1], fields[2])
-								logged = True
-
-						elif len(fields) == 2:
-							if logged == True:
-								# restore dir
-								if command == 'RSB':
-									self.restoreDir(connection, fields[1])
-
-								logged = False
-
-								else:
-									connection.sendall('ERR\n'.encode('ascii'))
-									sys.exit(1)
-
-						#FALTA UPL
-						else:
-						connection.sendall('ERR\n'.encode('ascii'))
-						sys.exit(1)
-
-					else:
-						connection.sendall('ERR\n'.encode('ascii'))
-						sys.exit(1)
-				else:
-					break
-
-		except socket.error:
-			print('CS failed to trade data with user')
-			sys.exit(1)
-
-		finally:
-			connection.close()
-
-
 	def tcp_server(self):
 		self.tcp_connect()
 
@@ -150,15 +149,15 @@ class BS:
 
 	def udp_client(self):
 		try:
-			# crete a UDP socket for initial communication with CS (as client)
+			# create a UDP socket for initial communication with CS (as client)
 			try:
-				udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+				self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 			except socket.error:
 				print('BS unable to create UDP socket')
 			# send data
-			udp_socket.sendto(('{} {} {}\n'.format('REG', BSname, BSport)).encode(), CS_server_address)
+			self.udp_socket.sendto(('{} {} {}\n'.format('REG', BSname, self.BSport)).encode(), (self.CSname, self.CSport))
 			# receive response
-			data, server = udp_socket.recvfrom(BUFFER_SIZE)
+			data, server = self.udp_socket.recvfrom(BUFFER_SIZE)
 			
 			fields = data.decode().split();
 			command = fields[0]
@@ -175,7 +174,7 @@ class BS:
 					sys.exit(1)
 					#repeat information trade to assure everything is received
 			else:
-				udp_socket.sendto(('REG {} {}\n'.format(BSname, BSport)).encode(), CS_server_address)
+				self.udp_socket.sendto(('REG {} {}\n'.format(BSname, self.BSport)).encode(), (self.CSname, self.CSport))
 				data, server = udp_socket.recvfrom(BUFFER_SIZE).decode()
 				print(data)
 
@@ -183,35 +182,46 @@ class BS:
 			print('BS failed to trade data')
 			sys.exit(1)
 		finally:
-			udp_socket.close()
+			self.udp_socket.close()
 
 
 	def udp_server(self):
 		# Running UDP server to receive requests from CS
+
 		try:
-			udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+			self.udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		except socket.error:
 			print('BS unable to create UDP socket')
 
+		# Reuse port
+		self.udp_socket2.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
 		try:
-			udp_socket2.bind(BS_server_address)
+			self.udp_socket2.bind((BSname, self.BSport))
 		except socket.error:
 			print('BS failed to bind with CS')
 			sys.exit(1)
+
+		def sigIntHandler(num, frame):
+			self.udp_socket2.sendto('Unregister\n'.encode('ascii'), (self.CSname, self.CSport))
+			sys.exit(0)
+
+		# Captures signal from Cntrl-C
+		signal.signal(signal.SIGINT, sigIntHandler)
+
 		try:
 			while(True): #TEMOS DE SABER O NUMERO DE BYTES A RECEBER????
 				print('BS waiting for a connection with a CS')
-				data = udp_socket2.recvfrom(1024).decode()
+				data = self.udp_socket2.recvfrom(1024).decode()
 
 		except socket.error:
 			print('BS failed to trade data with CS')
+
 		finally:
-			udp_socket2.close()
+			self.udp_socket2.close()
 
 
 if __name__ == "__main__":
-
-	commands = ['REG', 'RGR']
 
 	parser = argparse.ArgumentParser()
 
@@ -234,9 +244,6 @@ if __name__ == "__main__":
 	BSport = FLAGS.b
 	CSname = FLAGS.n
 	CSport = FLAGS.p
-
-	CS_server_address = (CSname, CSport)
-	BS_server_address = (BSname, BSport)
 
 	bs = BS(BSport, CSname, CSport)
 

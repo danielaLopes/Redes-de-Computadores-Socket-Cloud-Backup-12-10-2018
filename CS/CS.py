@@ -158,7 +158,7 @@ class CS:
 		udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 		try:
-			udp_socket.bind((CSname, CSport))
+			udp_socket.bind((CSname, self.CSport))
 		except socket.error:
 			print('CS failed to bind with BS')
 			sys.exit(1)
@@ -178,15 +178,30 @@ class CS:
 
 				if data:
 					fields = data.decode().split()
+					print('comando ' + fields[0])
 
 					if fields[0] == 'REG' and len(fields) == 3:
-						IPBS = fields [1]
-						portBS = fields [2]
+						IPBS = fields[1]
+						portBS = fields[2]
 
 						# Register all available BS in a file
 						try:
-							availableBS = open('availableBS.txt', 'a+')
-							availableBS.write('{} {} A\n'.format(IPBS, portBS)) # A for available
+							availableBS = open('availableBS.txt', 'r+')
+							BSs = availableBS.readlines()
+							if BSs != []:
+								print(BSs[0])
+								
+								BSregistered = False
+								for i in range(0, len(BSs)):
+									BSinfo = BSs[i].split()
+									if IPBS == BSinfo[0] and portBS == BSinfo[1]:
+										BSregistered = True
+								
+								if BSregistered == False:
+									availableBS.write('{} {} A\n'.format(IPBS, portBS)) # A for available
+							else:
+								availableBS.write('{} {} A\n'.format(IPBS, portBS)) # A for available
+							
 							availableBS.close()
 						except IOError:
 							print('Not possible to append information in availableBS.txt')
@@ -195,6 +210,21 @@ class CS:
 						udp_socket.sendto('RGR OK\n'.encode('ascii'), client_address)
 
 					#QUANDO FAZER RGR ERR?????
+
+					elif fields[0] == 'Unregister': 
+						'''availableBS = open('availableBS.txt', 'r')
+						text = availableBS.read()
+						BSs = availableBS.readlines()
+		
+						for line in BSs:
+							BSinfo = line.split()
+							if IPBS == BSinfo[0] and portBS == BSinfo[1]:
+								print('ola ' + line)
+								line.replace('A', 'N')
+								print('adeus ' + line)
+
+						availableBS.close()'''
+
 					else:
 						udp_socket.sendto('RGR NOK\n'.encode('ascii'), client_address)
 
@@ -217,7 +247,7 @@ class CS:
 		self.tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 		try:
-			self.tcp_socket.bind((CSname, CSport))
+			self.tcp_socket.bind((CSname, self.CSport))
 		except socket.error:
 			print('CS failed to bind with user')
 			sys.exit(1)
@@ -338,11 +368,6 @@ class CS:
 			if pid == 0:
 				self.userRequest(connection)
 
-		
-	def sig_handler(self, sig, frame):
-		cs.tcp_socket.close()
-		print("close")
-		signal.signal(signal.SIGINT, sig_handler)
 
 if __name__ == "__main__":
 
