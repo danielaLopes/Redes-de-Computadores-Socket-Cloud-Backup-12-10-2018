@@ -157,9 +157,9 @@ class User:
 		data = ""
 
 		while True:
-
 			tempdata = user.receiveData(1024)
-			if not tempdata:
+			print("antes: " + tempdata)
+			if tempdata == '\n':
 				break
 			data += tempdata
 
@@ -167,7 +167,6 @@ class User:
 		CS_response = fields[0]
 		N = int(fields[1])
 		self.closeSocket()
-
 
 		if CS_response == 'LDR':
 			for x in range(2,2+N):
@@ -188,12 +187,17 @@ class User:
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
 		self.sendData('DEL {}\n'.format(dir))
 		data = user.receiveData(1024)
+		user.closeSocket()
 		fields = data.split()
 		CS_response = fields[0]
-		N = int(fields[1])
-		user.closeSocket()
-
-
+		if CS_response == 'DDR':
+			status = fields[1]
+			if status == 'OK':
+				print('Directory succefully deleted')
+			elif status == 'NOK':
+				print('It was not possible to delete the requested directory')
+		else:
+			print('Unknown protocol message')
 	
 	def logout(self):
 		self.del_currentUser()

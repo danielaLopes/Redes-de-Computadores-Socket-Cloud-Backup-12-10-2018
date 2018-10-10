@@ -3,6 +3,7 @@ import sys
 import argparse
 import os
 import signal
+import shutil
 
 BUFFER_SIZE = 1024
 
@@ -45,6 +46,21 @@ class BS:
 
 		except IOError:
 			print('It was not possible to open the requested file')
+
+
+	def deleteDir(self, connection, user, dir):
+		dirPath = os.getcwd() + "/user_" + user + "/" + dir
+		userPath = os.getcwd() + "/user_" + user
+		if os.path.isdir(dirPath):
+			print("adeus")
+			shutil.rmtree(dirPath)
+			if len(os.listdir(userPath)) == 0:
+				print("ola")
+				shutil.rmtree(userPath)
+			self.udp_socket2.sendto('DBR OK\n'.encode('ascii'), connection)
+		else:
+			print('It was not possible to remove the requested directory')
+			self.udp_socket2.sendto('DBR NOK\n'.encode('ascii'), connection)
 
 
 	def userRequest(self, connection):
@@ -173,6 +189,7 @@ class BS:
 					print('Wrong protocol message received from CS')
 					sys.exit(1)
 					#repeat information trade to assure everything is received
+
 			else:
 				self.udp_socket.sendto(('REG {} {}\n'.format(BSname, self.BSport)).encode(), (self.CSname, self.CSport))
 				data, server = udp_socket.recvfrom(BUFFER_SIZE).decode()
@@ -206,13 +223,17 @@ class BS:
 			self.udp_socket2.sendto('Unregister\n'.encode('ascii'), (self.CSname, self.CSport))
 			sys.exit(0)
 
-		# Captures signal from Cntrl-C
+		# Captures signal from Ctrl-C
 		signal.signal(signal.SIGINT, sigIntHandler)
 
 		try:
-			while(True): #TEMOS DE SABER O NUMERO DE BYTES A RECEBER????
+			while(True):
 				print('BS waiting for a connection with a CS')
-				data = self.udp_socket2.recvfrom(1024).decode()
+				data, client_addr = self.udp_socket2.recvfrom(1024)
+				fields = data.decode().split()
+				command = fields[0]
+				if command == 'DLB':
+					self.deleteDir(client_addr, fields[1], fields[2])
 
 		except socket.error:
 			print('BS failed to trade data with CS')

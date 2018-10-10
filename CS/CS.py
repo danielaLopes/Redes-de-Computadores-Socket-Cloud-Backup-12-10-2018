@@ -5,6 +5,7 @@ import os
 import multiprocessing
 import signal
 import random
+import shutil
 
 BUFFER_SIZE = 1024
 
@@ -22,6 +23,8 @@ class CS:
 	def __init__(self, CSport):
 		self.CSport = CSport
 		self.tcp_socket = None
+		self.udp_socket = None
+		self.udp_socket2 = None
 
 
 	# User communication methods
@@ -108,9 +111,9 @@ class CS:
 			BS = random.choice(BSs).split()
 
 			try:
-				udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-				udp_socket.sendTo('LSU\n', (BS[0], BS[1]))
-				udp_socket.close()
+				self.udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+				self.udp_socket2.sendto('LSU\n', (BS[0], int(BS[1])))
+				self.udp_socket2.close()
 			except socket.error:
 				print('CS failed to create UDP socket')
 				sys.exit(1)
@@ -133,17 +136,62 @@ class CS:
 
 			for dir in dirNames:
 				message += " " + dir
-			message += "\n"
+			message += '\n'
 
 		connection.sendall(message.encode('ascii'))
+		connection.sendall('\0'.encode('ascii'))
 
 
-	def filelistDir(self):
+	def filelistDir(self, connection):
 		print('ola')
 
 
-	def deleteDir(self):
-		print('ola')
+	def deleteDir(self, connection, dir):
+		user = self.current_user
+		bsPath = os.getcwd() + "/user_" + user + "/" + dir + "/IP_port.txt"
+		bsFile = open(bsPath, 'r')
+		BS = bsFile.readline().split()
+		bsFile.close()
+
+		print("li ficheiro bs")
+		# Requests BS to delete dir
+		try:
+			self.udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+			#ISTO NAO ESTA EM PYTHON2
+			message = 'DLB ' + user + ' ' + dir + '\n'
+			self.udp_socket2.sendto(message.encode('ascii'), (BS[0], int(BS[1])))
+			print('antes de receber do BS')
+			data, client_addr = self.udp_socket2.recvfrom(1024)
+			print('depois de receber do BS')
+			self.udp_socket2.close()
+		except socket.error:
+			print('CS failed to create UDP socket')
+			sys.exit(1)
+
+		# Deletes dir from CS
+		deleteStatus = False
+		dirPath = os.getcwd() + "/user_" + user + "/" + dir
+		print("apaga diretoria user")
+		if os.path.isdir(dirPath):
+			shutil.rmtree(dirPath)
+			deleteStatus = True
+		else:
+			print('It was not possible to remove the requested directory')
+
+		fields = data.decode().split()
+		command = fields[0]
+
+		# Tells user if everything is ok
+		if command == 'DBR':
+			status = fields[1]
+			if status == 'OK' and deleteStatus == True:
+				connection.sendall('DDR OK'.encode('ascii'))
+			elif status == 'NOK' and deleteStatus == False:
+				connection.sendall('DDR NOK'.encode('ascii'))
+			else:
+				connection.sendall('ERR'.encode('ascii'))
+		else:
+			connection.sendall('ERR'.encode('ascii'))
 
 
 	# Socket related methods
@@ -168,13 +216,13 @@ class CS:
 
 
 	def udp_server(self):
-		udp_socket = self.udp_connect()
+		self.udp_socket = self.udp_connect()
 
 		try:
 			# Runs server indefinitely to attend BS registrations
 			while True:
 				print('Waiting for a connection with a BS')
-				data, client_address = udp_socket.recvfrom(BUFFER_SIZE)
+				data, client_address = self.udp_socket.recvfrom(BUFFER_SIZE)
 
 				if data:
 					fields = data.decode().split()
@@ -207,7 +255,7 @@ class CS:
 							print('Not possible to append information in availableBS.txt')
 
 						print('{} {} {}'.format(fields[0], IPBS, portBS))
-						udp_socket.sendto('RGR OK\n'.encode('ascii'), client_address)
+						self.udp_socket.sendto('RGR OK\n'.encode('ascii'), client_address)
 
 					#QUANDO FAZER RGR ERR?????
 
@@ -226,14 +274,14 @@ class CS:
 						availableBS.close()'''
 
 					else:
-						udp_socket.sendto('RGR NOK\n'.encode('ascii'), client_address)
+						self.udp_socket.sendto('RGR NOK\n'.encode('ascii'), client_address)
 
 		except socket.error:
 			print('CS failed to trade data with BS')
 			sys.exit(1)
 
 		finally:
-			udp_socket.close()
+			self.udp_socket.close()
 
 
 	def tcp_connect(self):
@@ -317,13 +365,13 @@ class CS:
 							if logged == True:
 								# restore dir
 								if command == 'RST': # CS response: RSR IPBS portBS
-								    self.restoreDir()
+								    self.restoreDir(connection, fields[1])
 								# filelist dir
 								elif command == 'LSF': # CS response: LFD BSip BSport N (filename date_time size)*
-								    self.filelistDir()
+								    self.filelistDir(connection, fields[1])
 								# del dir
 								elif command == 'DEL': # CS response: DDR status
-								    self.deleteDir()
+								    self.deleteDir(connection, fields[1])
 
 								else:
 									connection.sendall('ERR\n'.encode('ascii'))
