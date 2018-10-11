@@ -100,24 +100,63 @@ class CS:
 			print('This user is not registered')
 
 
-	def backupDir(self, connection, dir, N):
+	def backupDir(self, connection, dir, N, fileData):
 		user = self.current_user
 		userPath = os.getcwd() + "/user_" + user
 		dirlist = os.listdir(userPath)
 
+		print(user)
+
+		#dirlen = len(dir)
+
 		if dir not in dirlist:
 			availableBS = open("availableBS.txt", "r")
 			BSs = availableBS.readlines()
+
 			BS = random.choice(BSs).split()
+			IPBS = BS[0]
+			portBS = BS[1]
+
+			os.mkdir(userPath + "/" + dir)
+
+			BSfile = open(userPath + "/" + dir + "/IP_port.txt", 'w')
+			BSfile.write(IPBS + " " + portBS)
+			BSfile.close()
 
 			try:
 				self.udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-				self.udp_socket2.sendto('LSU\n', (BS[0], int(BS[1])))
+
+				f = open("user_" + user + ".txt", "r")
+				password = f.read(8)
+				f.close()
+
+				self.udp_socket2.sendto('LSU {} {}\n'.format(user, password).encode('ascii'), (IPBS, int(portBS)))
+
+				print("mandei")
+
+				data, client_addr = self.udp_socket2.recvfrom(BUFFER_SIZE)
 				self.udp_socket2.close()
+
+
+				fields = data.decode().split()
+				command = fields[0]
+				status = fields[1]
+				info = fileData[5 + len(dir):]
+
+				print(fileData)
+
+
+				if command == "LUR":
+					if status == "OK":
+						message = "BKR " + IPBS + " " + portBS + ' ' + info;
+						connection.sendall(message.encode('ascii'))
+
+				else:
+					print("oi")
+
 			except socket.error:
 				print('CS failed to create UDP socket')
 				sys.exit(1)
-
 
 
 	def restoreDir(self):
@@ -372,16 +411,18 @@ class CS:
 								self.userAuthentication(connection,fields[1], fields[2])
 								logged = True
 
+							#UPDATE!!!!
 							# backup dir
-							elif command == 'BCK': # CS response: BKR IPBS portBS N (filename date_time size)*
-								if logged == True:
-									self.backupDir(connection, fields[1], fields[2])
-									logged = False
-								# else
 
 							else:
 								connection.sendall('ERR\n'.encode('ascii'))
 								sys.exit(1)
+
+						elif command == 'BCK': # CS response: BKR IPBS portBS N (filename date_time size)*
+								if logged == True:
+									print("vim")
+									self.backupDir(connection, fields[1], fields[2], data.decode())
+									logged = False
 
 						elif len(fields) == 1:
 							if logged == True:
@@ -455,9 +496,9 @@ class CS:
 				self.userRequest(connection)
 
 
-	def sigIntHandler(num, frame):
-		open('availableBS.txt', 'w').close()
-		sys.exit()
+def sigIntHandler(num, frame):
+	open('availableBS.txt', 'w').close()
+	sys.exit()
 
 
 if __name__ == "__main__":

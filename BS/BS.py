@@ -22,6 +22,7 @@ class BS:
 		self.tcp_socket = None
 		self.udp_socket = None
 		self.udp_socket2 = None
+		self.current_user = None
 
 	# User communication methods
 	def userAuthentication(self, connection, username, password):
@@ -78,6 +79,64 @@ class BS:
 		self.udp_socket2.sendto(message.encode('ascii'), connection)
 
 
+	def LSU(self, connection, username, password):
+		filename = "user_" + username + ".txt";
+		userFile = open(filename, 'w+')
+		userFile.write(password + '\n')
+		userFile.close()
+
+		# Create new directory for that use
+		if not os.path.exists('user_' + username):
+			try:
+				os.mkdir('user_' + username)
+			except OSError:
+				print('Not possible to create directory for this user')
+
+			self.udp_socket2.sendto("LUR OK".encode('ascii'), connection)
+		else:
+			print('directory already exists')
+
+	def UPL (self, connection, dir, N, data):
+		print("coisas")
+		user = self.current_user
+		userPath = os.getcwd() + "/user_" + user
+
+		path = userPath + "/" + dir
+		os.mkdir(path)
+
+		print(data)
+
+		files = self.makeFile(data[6 + len(dir) + len(N):], path)
+
+		while files != '':
+			try:
+				files = self.makeFile(files, path)
+			except OSError:
+				connection.sendall("UPR NOK".encode('ascii'))
+		print('ola')
+		connection.sendall("UPR OK".encode('ascii'))
+
+		
+
+	def makeFile (self, files, path):
+		content = files.split()
+		print(files)
+		fileName = content[0]
+		date = content[1] + " " + content[2]
+		#NAO ESQUECER MUDAR DATA PARA A ANTIGA GIGANTE
+		size = int(content[3])
+
+		lens = len(fileName) + len(date) + len(str(size)) + 3
+
+		userFile = open(path+"/"+fileName, 'w+')
+		userFile.write(files[lens:lens + size])
+		userFile.close
+
+
+		return files[lens+size:]
+
+
+
 	def userRequest(self, connection):
 		try:
 			logged = False
@@ -88,6 +147,8 @@ class BS:
 				if data:
 					fields = data.decode().split()
 					command = fields[0]
+
+					print(command)
 
 					if command in self.user_commands:
 						if len(fields) == 3:
@@ -106,6 +167,9 @@ class BS:
 								else:
 									connection.sendall('ERR\n'.encode('ascii'))
 									sys.exit(1)
+
+						elif command == 'UPL':
+							self.UPL(connection, fields[1], fields[2], data.decode())
 
 						#FALTA UPL
 						else:
@@ -175,7 +239,7 @@ class BS:
 
 			# Child process attending new user, father process continues waiting for new connections with users
 			if pid == 0:
-				self.userRequest()
+				self.userRequest(connection)
 
 
 	def udp_client(self):
@@ -252,6 +316,10 @@ class BS:
 
 				if command == 'LSF': # CS response: AUR status
 					self.LSF(client_addr, fields[1], fields[2])
+
+				#UPDATE!!!!
+				if command == 'LSU': # CS response: AUR status
+					self.LSU(client_addr, fields[1], fields[2])
 
 		except socket.error:
 			print('BS failed to trade data with CS')

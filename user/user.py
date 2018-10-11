@@ -124,6 +124,7 @@ class User:
 
 
 	def backupDir(self, dir):
+		#Communicate with CS
 		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
 
@@ -137,11 +138,47 @@ class User:
 
 		message = "BCK " + dir + " " + str(len(dirFiles)) + fileInf + "\n"
 		self.sendData(message)
-		data = user.receiveData(1024).split()
+		print(message)
+		
+		data = self.receiveData(1024)
+		print(data)
+		fields = data.split()
 		self.closeSocket()
 
-		if data[0] == 'BKR':
-			print('backup to: {} {}'.format(data[1], data[2]))
+		IPBS = fields[1]
+		portBS = int(fields[2])
+		N = int(fields[3])
+
+		if fields[0] == 'BKR':
+			print('backup to: {} {}'.format(IPBS, fields[2]))
+
+		#Communicate with BS
+		self.connect((IPBS, portBS))
+		self.sendAuthentication(user.current_user[0], user.current_user[1])
+
+		info = ''
+
+		for x in range(4,4+(N*4), 4):
+			f = open(dirPath + '/' + fields[x], 'r')
+			fileData = f.read()
+			info += fields[x] + ' ' + fields[x+1] + ' ' + fields[x+2] + ' ' + fields[x+3] + ' ' + fileData
+
+		message = "UPL " + dir + " " + str(N) + " " + info
+		self.sendData(message)
+
+		data = self.receiveData(1024).split()
+		print(data)
+		if data[0] == "UPR":
+			if data[1] == "OK":
+
+				files = ''
+
+				for x in range(4,4+(N*4), 4):
+					files += fields[x] + ' ' 
+
+				print ("completed - {}: {}".format(dir, files))
+
+
 
 		#FALAR COM O BS
 
@@ -180,6 +217,7 @@ class User:
 		else:
 			print('Wrong protocol message received from CS')
 			sys.exit(1)
+
 
 
 	def filelistDir(self, dir):
