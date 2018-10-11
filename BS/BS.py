@@ -4,6 +4,7 @@ import argparse
 import os
 import signal
 import shutil
+import time
 
 BUFFER_SIZE = 1024
 
@@ -61,6 +62,20 @@ class BS:
 		else:
 			print('It was not possible to remove the requested directory')
 			self.udp_socket2.sendto('DBR NOK\n'.encode('ascii'), connection)
+
+
+	def LSF(self, connection, user, dir):
+		userPath = os.getcwd() + "/user_" + user
+		dirPath = userPath + "/" + dir
+		fileList = os.listdir(dirPath)
+		fileInf = ""
+
+		for file in fileList:
+			fileInf = fileInf + " " + file + " " + time.strftime('%m.%d.%Y %H:%M:%S',
+			time.gmtime(os.path.getmtime(dirPath + "/" + file))) + " " + str(int(os.stat(dirPath + "/" + file).st_size))
+
+		message = "LFD " + str(len(fileList)) + fileInf + "\n"
+		self.udp_socket2.sendto(message.encode('ascii'), connection)
 
 
 	def userRequest(self, connection):
@@ -174,11 +189,11 @@ class BS:
 			self.udp_socket.sendto(('{} {} {}\n'.format('REG', BSname, self.BSport)).encode(), (self.CSname, self.CSport))
 			# receive response
 			data, server = self.udp_socket.recvfrom(BUFFER_SIZE)
-			
+
 			fields = data.decode().split();
 			command = fields[0]
 			status = fields[1]
-			
+
 			if data and command == 'RGR':
 				if status == 'OK':
 					print(data.decode())
@@ -234,6 +249,9 @@ class BS:
 				command = fields[0]
 				if command == 'DLB':
 					self.deleteDir(client_addr, fields[1], fields[2])
+
+				if command == 'LSF': # CS response: AUR status
+					self.LSF(client_addr, fields[1], fields[2])
 
 		except socket.error:
 			print('BS failed to trade data with CS')

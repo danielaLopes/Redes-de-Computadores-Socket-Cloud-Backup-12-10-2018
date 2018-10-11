@@ -39,7 +39,7 @@ class CS:
 			except IOError:
 				print('Not possible to create availableBS.txt')
 
-	
+
 	def userAuthentication(self, connection, username, password):
 		filename = "user_" + username + ".txt";
 		try:
@@ -130,7 +130,7 @@ class CS:
 		message = "LDR"
 
 		if not dirNames:
-			message += " 0\n"	
+			message += " 0\n"
 		else:
 			message += " " + str(len(dirNames))
 
@@ -142,8 +142,38 @@ class CS:
 		connection.sendall('\0'.encode('ascii'))
 
 
-	def filelistDir(self, connection):
-		print('ola')
+	def filelistDir(self, connection, dir):
+		userPath = os.getcwd() + "/user_" + self.current_user
+		dirPath = userPath + "/" + dir
+
+		BSfile = open(dirPath + "/IP_port.txt", 'r')
+		BS = BSfile.readline().split()
+		BSfile.close()
+		print(BS)
+
+		IPBS = BS[0]
+		portBS = int(BS[1])
+
+		try:
+			self.udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+			self.udp_socket2.sendto('LSF {} {}\n'.format(self.current_user, dir).encode('ascii'), (IPBS, portBS))
+
+			data, client_addr = self.udp_socket2.recvfrom(BUFFER_SIZE)
+			self.udp_socket2.close()
+
+			decodedData = data.decode()
+			fields = decodedData.split()
+			command = fields[0]
+			info = decodedData[3:]
+
+			if command == "LFD":
+				message = "LFD " + IPBS + " " + BS[1] + info;
+				connection.sendall(message.encode('ascii'))
+
+		except socket.error:
+			print('CS failed to create UDP socket')
+			sys.exit(1)
 
 
 	def deleteDir(self, connection, dir):
@@ -238,18 +268,18 @@ class CS:
 							BSs = availableBS.readlines()
 							if BSs != []:
 								print(BSs[0])
-								
+
 								BSregistered = False
 								for i in range(0, len(BSs)):
 									BSinfo = BSs[i].split()
 									if IPBS == BSinfo[0] and portBS == BSinfo[1]:
 										BSregistered = True
-								
+
 								if BSregistered == False:
 									availableBS.write('{} {} A\n'.format(IPBS, portBS)) # A for available
 							else:
 								availableBS.write('{} {} A\n'.format(IPBS, portBS)) # A for available
-							
+
 							availableBS.close()
 						except IOError:
 							print('Not possible to append information in availableBS.txt')
@@ -259,11 +289,11 @@ class CS:
 
 					#QUANDO FAZER RGR ERR?????
 
-					elif fields[0] == 'Unregister': 
+					elif fields[0] == 'Unregister':
 						'''availableBS = open('availableBS.txt', 'r')
 						text = availableBS.read()
 						BSs = availableBS.readlines()
-		
+
 						for line in BSs:
 							BSinfo = line.split()
 							if IPBS == BSinfo[0] and portBS == BSinfo[1]:

@@ -13,22 +13,22 @@ class User:
 
 	current_user = [] # [username, password]
 
-	
+
 	def __init__(self, CSname, CSport):
 		self.TCPsocket = None
 		self.CSname = CSname
 		self.CSport = CSport
 
-	
+
 	def set_currentUser(self, username, password):
 		self.current_user.insert(0, username)
 		self.current_user.insert(1, password)
 
-	
+
 	def del_currentUser(self):
 		self.current_user= []
 
-	
+
 	# Socket related methods
 	def connect(self, address): #address is a tuple with the name and port of the tcp server
 		try:
@@ -43,7 +43,7 @@ class User:
 			print('User failed to connect')
 			sys.exit(1)
 
-	
+
 	def sendData(self, data):
 		try:
 			self.TCPsocket.sendall(data.encode('ascii'))
@@ -51,7 +51,7 @@ class User:
 			print('User failed to send data to Central Server')
 			sys.exit(1)
 
-	
+
 	def receiveData(self, n_bytes):
 		try:
 			return self.TCPsocket.recv(n_bytes).decode()
@@ -59,11 +59,11 @@ class User:
 			print('User failed to receive data from Central Server')
 			sys.exit(1)
 
-	
+
 	def closeSocket(self):
 		self.TCPsocket.close()
 
-	
+
 	# Interface related methods
 	def sendAuthentication(self, username, password):
 		self.sendData('AUT {} {}\n'.format(username, password))
@@ -87,7 +87,7 @@ class User:
 			print('Wrong protocol message received from CS')
 			sys.exit(1)
 
-	
+
 	# E PRECISO FECHAR O SOCKET ANTES DE FAZER SYS.EXIT() ?????????
 	def login(self, username, password):
 		# verify user input
@@ -98,7 +98,7 @@ class User:
 		else:
 			print('Wrong arguments')
 
-	
+
 	def deluser(self):
 		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
@@ -122,11 +122,11 @@ class User:
 			print('Wrong protocol message received from CS')
 			sys.exit(1)
 
-	
+
 	def backupDir(self, dir):
 		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
-		
+
 		dirPath = os.getcwd() + "/" + dir
 		dirFiles = os.listdir(dirPath)
 		fileInf = ""
@@ -144,7 +144,7 @@ class User:
 			print('backup to: {} {}'.format(data[1], data[2]))
 
 		#FALAR COM O BS
-	
+
 	def restoreDir(self, dir):
 		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
@@ -180,8 +180,23 @@ class User:
 	def filelistDir(self, dir):
 		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
+		self.sendData('LSF {}\n'.format(dir))
+		data = user.receiveData(1024)
+		fields = data.split()
+		CS_response = fields[0]
+		N = int(fields[3])
+		user.closeSocket()
 
-	
+		if CS_response == 'LFD':
+			print('BS: {} {}'.format(fields[1], fields[2]))
+			for x in range(4,4+(N*4), 4):
+				print('{} {} {}'.format(fields[x], fields[x+1], fields[x+2], fields[x+3]))
+
+		else:
+			print('Wrong protocol message received from CS')
+			sys.exit(1)
+
+
 	def deleteDir(self, dir):
 		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
@@ -198,7 +213,7 @@ class User:
 				print('It was not possible to delete the requested directory')
 		else:
 			print('Unknown protocol message')
-	
+
 	def logout(self):
 		self.del_currentUser()
 
@@ -237,7 +252,7 @@ if __name__ == "__main__":
 			if (len(fields) == 3):
 				if input_command == 'login':
 					user.login(fields[1], fields[2]);
-			
+
 			elif input_command == 'exit' and len(fields) == 1:
 				sys.exit(0) #ESTAMOS A USAR A CENA CERTA??
 
@@ -259,6 +274,9 @@ if __name__ == "__main__":
 
 					elif input_command == 'restore':
 						user.restoreDir(fields[1])
+
+					elif input_command == 'filelist':
+						user.filelistDir(fields[1])
 
 					elif input_command == 'delete':
 						user.deleteDir(fields[1])
