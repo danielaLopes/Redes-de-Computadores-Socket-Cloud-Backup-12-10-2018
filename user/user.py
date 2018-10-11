@@ -154,24 +154,29 @@ class User:
 		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(self.current_user[0], self.current_user[1])
 		self.sendData('LSD\n')
-		data = ""
-
-		while True:
-			tempdata = user.receiveData(1024)
-			print("antes: " + tempdata)
-			if tempdata == '\n':
-				break
-			data += tempdata
-
+		
+		data = self.TCPsocket.recv(1024).decode()
+		print(data)
 		fields = data.split()
 		CS_response = fields[0]
 		N = int(fields[1])
+		Ns = N
+
+		message = ""
+		final = ""
+
+		while N != 0:
+			message = self.TCPsocket.recv(1024).decode()
+			final += message
+			fields = final.split()
+			if len(fields) >= Ns:
+				break
+			N -= 1
+
 		self.closeSocket()
 
 		if CS_response == 'LDR':
-			for x in range(2,2+N):
-				print('{} '.format(fields[x]))
-
+			print(final[1:])
 		else:
 			print('Wrong protocol message received from CS')
 			sys.exit(1)

@@ -235,10 +235,10 @@ class BS:
 			sys.exit(1)
 
 		def sigIntHandler(num, frame):
-			self.udp_socket2.sendto('Unregister\n'.encode('ascii'), (self.CSname, self.CSport))
+			self.udp_socket2.sendto('UNR ' + BSname + ' ' + str(self.BSport) + '\n'.encode(), (self.CSname, self.CSport))
 			sys.exit(0)
 
-		# Captures signal from Ctrl-C
+		# Captures signal from Cntrl-C
 		signal.signal(signal.SIGINT, sigIntHandler)
 
 		try:

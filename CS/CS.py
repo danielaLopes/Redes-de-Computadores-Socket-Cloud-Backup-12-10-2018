@@ -29,7 +29,7 @@ class CS:
 
 	# User communication methods
 	#NAO ESQUECER DE IMPRIMIR AS INFORMACOES DO USER!!!!!!!!!!
-	def createBackupFile(self):
+	def createBSsFile(self):
 		# If this file was not created yet, the CS creates it
 		if not os.path.isfile('availableBS.txt'):
 			try:
@@ -125,21 +125,21 @@ class CS:
 
 
 	def dirList(self, connection):
-		#ir à diretoria do user e percorrer os nomes das diretorias
 		dirNames = os.listdir('.'+'/user_'+ self.current_user)
-		message = "LDR"
+		info = "LDR"
 
 		if not dirNames:
-			message += " 0\n"
+			info += " 0\n"	
+			connection.sendall(info.encode())
 		else:
-			message += " " + str(len(dirNames))
+			info += " " + str(len(dirNames))
+			connection.sendall(info.encode())
+			print(info)
 
 			for dir in dirNames:
-				message += " " + dir
-			message += '\n'
-
-		connection.sendall(message.encode('ascii'))
-		connection.sendall('\0'.encode('ascii'))
+				message = " " + dir
+				print(message)
+				connection.send(message.encode('ascii'))
 
 
 	def filelistDir(self, connection, dir):
@@ -289,19 +289,27 @@ class CS:
 
 					#QUANDO FAZER RGR ERR?????
 
-					elif fields[0] == 'Unregister':
-						'''availableBS = open('availableBS.txt', 'r')
-						text = availableBS.read()
-						BSs = availableBS.readlines()
+					elif fields[0] == 'UNR': 
+						try:
+							IPBS = fields[1]
+							portBS = int(fields[2])
 
-						for line in BSs:
-							BSinfo = line.split()
-							if IPBS == BSinfo[0] and portBS == BSinfo[1]:
-								print('ola ' + line)
-								line.replace('A', 'N')
-								print('adeus ' + line)
+							availableBS = open('availableBS.txt', 'r')
+							BSs = availableBS.readlines()
+							availableBS.close()
 
-						availableBS.close()'''
+							availableBS = open('availableBS.txt', 'w')
+
+							for line in BSs:
+								BSinfo = line.split()
+								if IPBS != BSinfo[0] or str(portBS) != BSinfo[1]:
+									availableBS.write(line)
+							availableBS.close()
+
+							udp_socket.sendto('UAR OK\n'.encode(), client_address)
+						except IOError:
+							udp_socket.sendto('UAR NOK\n'.encode(), client_address)
+
 
 					else:
 						self.udp_socket.sendto('RGR NOK\n'.encode('ascii'), client_address)
@@ -447,6 +455,11 @@ class CS:
 				self.userRequest(connection)
 
 
+	def sigIntHandler(num, frame):
+		open('availableBS.txt', 'w').close()
+		sys.exit()
+
+
 if __name__ == "__main__":
 
 	# Parse argument
@@ -460,7 +473,9 @@ if __name__ == "__main__":
 	CSport = FLAG.p
 
 	cs = CS(CSport)
-	cs.createBackupFile()
+	cs.createBSsFile()
+
+	signal.signal(signal.SIGINT, sigIntHandler)
 
 	# Avoid child process zombies
 	signal.signal(signal.SIGCHLD, signal.SIG_IGN)
