@@ -5,6 +5,9 @@ import os
 import signal
 import shutil
 import time
+import datetime
+from datetime import datetime
+
 
 BUFFER_SIZE = 1024
 
@@ -104,7 +107,6 @@ class BS:
 		path = userPath + "/" + dir
 		os.mkdir(path)
 
-		print(data)
 
 		files = self.makeFile(data[6 + len(dir) + len(N):], path)
 
@@ -113,7 +115,7 @@ class BS:
 				files = self.makeFile(files, path)
 			except OSError:
 				connection.sendall("UPR NOK".encode('ascii'))
-		print('ola')
+
 		connection.sendall("UPR OK".encode('ascii'))
 
 		
@@ -131,6 +133,19 @@ class BS:
 		userFile = open(path+"/"+fileName, 'w+')
 		userFile.write(files[lens:lens + size])
 		userFile.close
+
+		'''
+
+		time1 = content[1].split(".")
+		time2 = content[2].split(":")
+
+		dt = datetime.datetime(int(time1[2]), int(time1[1]), int(time1[0]), int(time2[0]), int(time2[1]), int(time2[2]))
+		#s_time = (int(time1[2]),int(time1[1]),int(time1[0]),int(time2[0]),int(time2[1]),int(time2[2]))
+		
+		secs = time.mktime(dt.timetuple())
+		print(secs)
+		os.utime(path+"/"+fileName, (secs,secs))
+		'''
 
 
 		return files[lens+size:]

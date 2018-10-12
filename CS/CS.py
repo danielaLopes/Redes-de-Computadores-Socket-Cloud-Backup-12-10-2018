@@ -158,6 +158,59 @@ class CS:
 				print('CS failed to create UDP socket')
 				sys.exit(1)
 
+		else:
+			with open(userPath + "/" + dir + "/IP_port.txt", 'r') as BSfile:
+				bsStr = BSfile.readline().split()
+
+			IPBS = bsStr[0]
+			portBS = bsStr[1]
+
+			try:
+				self.udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+				self.udp_socket2.sendto('LSF {} {}\n'.format(user, dir).encode('ascii'), (IPBS, int(portBS)))
+
+				print("mandei")
+
+				data, client_addr = self.udp_socket2.recvfrom(BUFFER_SIZE)
+				self.udp_socket2.close()
+
+
+				fields = data.decode().split()
+				command = fields[0]
+				n = fields[1]
+				info = fields[2:]
+
+				files = set()
+				for i in range(0,len(info),4):
+					files.add(" ".join(info[i:i+2] + info[i+3:i+4]))
+					#info[i:i+4]
+				
+				print("info: {}".format(files))
+				fileData = fileData[6 + len(dir)+len(str(N)):].split()
+				filesData = set()
+				for i in range(0,len(fileData),4):
+					filesData.add(" ".join(fileData[i:i+2] + fileData[i+3:i+4]))
+
+				print("filesData: {}".format(filesData))
+
+				modifiedFiles = files.difference(filesData)
+				print(modifiedFiles)
+
+				#mandar modifiedFiles para o user
+
+				if command == "LFD":
+					if int(n) >= 0:
+						pass#message = "BKR " + IPBS + " " + portBS + ' ' + info;
+						#connection.sendall(message.encode('ascii'))
+
+				else:
+					print("oi")
+
+			except socket.error:
+				print('CS failed to create UDP socket')
+				sys.exit(1)
+
 
 	def restoreDir(self):
 		print('ola')
