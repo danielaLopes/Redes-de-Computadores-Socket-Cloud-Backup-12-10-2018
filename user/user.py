@@ -313,12 +313,26 @@ class User:
 		fields = data.split()
 		CS_response = fields[0]
 		N = int(fields[3])
+		
+		Ns = N * 4
+		final = ""
+
+
+		while N != 0:
+			message = self.TCPsocket.recv(1024).decode()
+			final += message
+			fields_message = final.split()
+			if len(fields_message) >= Ns:
+				break
+			N -= 1
+
 		user.closeSocket()
+
 
 		if CS_response == 'LFD':
 			print('BS: {} {}'.format(fields[1], fields[2]))
-			for x in range(4,4+(N*4), 4):
-				print('{} {} {}'.format(fields[x], fields[x+1], fields[x+2], fields[x+3]))
+			for x in range(0,(N*4), 4):
+				print('{} {} {}'.format(fields_message[x], fields_message[x+1], fields_message[x+2], fields_message[x+3]))
 
 		else:
 			print('Wrong protocol message received from CS')

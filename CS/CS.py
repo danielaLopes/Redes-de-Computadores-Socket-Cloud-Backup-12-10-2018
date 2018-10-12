@@ -278,11 +278,13 @@ class CS:
 			decodedData = data.decode()
 			fields = decodedData.split()
 			command = fields[0]
-			info = decodedData[3:]
+			info = decodedData[4 + len(fields[1]):]
 
 			if command == "LFD":
-				message = "LFD " + IPBS + " " + BS[1] + info;
+				message = "LFD " + IPBS + " " + BS[1] + ' ' + fields[1]
 				connection.sendall(message.encode('ascii'))
+
+				connection.sendall(info.encode('ascii'))
 
 		except socket.error:
 			print('CS failed to create UDP socket')
