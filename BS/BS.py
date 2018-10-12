@@ -11,7 +11,7 @@ from datetime import datetime
 
 BUFFER_SIZE = 1024
 
-BSname = socket.gethostname()
+BSname = 'localhost'
 
 class BS:
 
@@ -310,7 +310,7 @@ class BS:
 			sys.exit(1)
 
 		def sigIntHandler(num, frame):
-			self.udp_socket2.sendto('UNR ' + BSname + ' ' + str(self.BSport) + '\n'.encode(), (self.CSname, self.CSport))
+			self.udp_socket2.sendto(('UNR {} {}\n'.format(BSname, self.BSport)).encode('ascii'), (self.CSname, self.CSport))
 			sys.exit(0)
 
 		# Captures signal from Cntrl-C

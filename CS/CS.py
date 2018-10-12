@@ -9,7 +9,7 @@ import shutil
 
 BUFFER_SIZE = 1024
 
-CSname = socket.gethostname()
+CSname = 'localhost'#socket.gethostname()
 
 
 class CS:
@@ -400,9 +400,9 @@ class CS:
 									availableBS.write(line)
 							availableBS.close()
 
-							udp_socket.sendto('UAR OK\n'.encode(), client_address)
+							self.udp_socket.sendto('UAR OK\n'.encode(), client_address)
 						except IOError:
-							udp_socket.sendto('UAR NOK\n'.encode(), client_address)
+							self.udp_socket.sendto('UAR NOK\n'.encode(), client_address)
 
 
 					else:
