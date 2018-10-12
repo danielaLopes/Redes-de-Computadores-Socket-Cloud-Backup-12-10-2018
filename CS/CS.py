@@ -9,7 +9,7 @@ import shutil
 
 BUFFER_SIZE = 1024
 
-CSname = 'localhost'#socket.gethostname()
+CSname = socket.gethostname()
 
 
 class CS:
@@ -183,26 +183,28 @@ class CS:
 
 				files = set()
 				for i in range(0,len(info),4):
-					files.add(" ".join(info[i:i+2] + info[i+3:i+4]))
+					files.add(" ".join(info[i:i+4]))
 					#info[i:i+4]
-				
+
 				print("info: {}".format(files))
 				fileData = fileData[6 + len(dir)+len(str(N)):].split()
 				filesData = set()
 				for i in range(0,len(fileData),4):
-					filesData.add(" ".join(fileData[i:i+2] + fileData[i+3:i+4]))
+					filesData.add(" ".join(fileData[i:i+4]))
 
 				print("filesData: {}".format(filesData))
 
-				modifiedFiles = files.difference(filesData)
-				print(modifiedFiles)
+				modifiedFiles = filesData.difference(files)
+				print('ola {}'.format(modifiedFiles))
+
+				info = str(len(modifiedFiles)) + ' ' + ' '.join(modifiedFiles)
 
 				#mandar modifiedFiles para o user
 
 				if command == "LFD":
 					if int(n) >= 0:
-						pass#message = "BKR " + IPBS + " " + portBS + ' ' + info;
-						#connection.sendall(message.encode('ascii'))
+						message = "BKR " + IPBS + " " + portBS + ' ' + info;
+						connection.sendall(message.encode('ascii'))
 
 				else:
 					print("oi")
@@ -221,7 +223,7 @@ class CS:
 		info = "LDR"
 
 		if not dirNames:
-			info += " 0\n"	
+			info += " 0\n"
 			connection.sendall(info.encode())
 		else:
 			info += " " + str(len(dirNames))
@@ -381,7 +383,7 @@ class CS:
 
 					#QUANDO FAZER RGR ERR?????
 
-					elif fields[0] == 'UNR': 
+					elif fields[0] == 'UNR':
 						try:
 							IPBS = fields[1]
 							portBS = int(fields[2])

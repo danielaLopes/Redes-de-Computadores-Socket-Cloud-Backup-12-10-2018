@@ -11,7 +11,7 @@ from datetime import datetime
 
 BUFFER_SIZE = 1024
 
-BSname = 'localhost'
+BSname = socket.gethostname()
 
 class BS:
 
@@ -104,8 +104,11 @@ class BS:
 		user = self.current_user
 		userPath = os.getcwd() + "/user_" + user
 
+		dirList = os.listdir(userPath)
 		path = userPath + "/" + dir
-		os.mkdir(path)
+
+		if dir not in dirList:
+			os.mkdir(path)
 
 
 		files = self.makeFile(data[6 + len(dir) + len(N):], path)
@@ -118,7 +121,7 @@ class BS:
 
 		connection.sendall("UPR OK".encode('ascii'))
 
-		
+
 
 	def makeFile (self, files, path):
 		content = files.split()
@@ -130,79 +133,72 @@ class BS:
 
 		lens = len(fileName) + len(date) + len(str(size)) + 3
 
-		userFile = open(path+"/"+fileName, 'w+')
+		userFile = open(path+"/"+fileName, 'w')
 		userFile.write(files[lens:lens + size])
-		userFile.close
+		userFile.close()
 
-		'''
+		dateTime = time.strptime(content[1] + " " + content[2], '%m.%d.%Y %H:%M:%S')
+		epoch = time.mktime(dateTime) + 60*60
+		print(dateTime)
+		print(epoch)
 
-		time1 = content[1].split(".")
-		time2 = content[2].split(":")
-
-		dt = datetime.datetime(int(time1[2]), int(time1[1]), int(time1[0]), int(time2[0]), int(time2[1]), int(time2[2]))
-		#s_time = (int(time1[2]),int(time1[1]),int(time1[0]),int(time2[0]),int(time2[1]),int(time2[2]))
-		
-		secs = time.mktime(dt.timetuple())
-		print(secs)
-		os.utime(path+"/"+fileName, (secs,secs))
-		'''
-
+		os.utime(path+"/"+fileName, (epoch,epoch))
 
 		return files[lens+size:]
 
 
 
 	def userRequest(self, connection):
-		try:
-			logged = False
+		#try:
+		logged = False
 
-			while True:
-				data = connection.recv(BUFFER_SIZE)
+		while True:
+			data = connection.recv(BUFFER_SIZE)
 
-				if data:
-					fields = data.decode().split()
-					command = fields[0]
+			if data:
+				fields = data.decode().split()
+				command = fields[0]
 
-					print(command)
+				print(command)
 
-					if command in self.user_commands:
-						if len(fields) == 3:
-							if command == 'AUT':
-								self.userAuthentication(connection, fields[1], fields[2])
-								logged = True
+				if command in self.user_commands:
+					if len(fields) == 3:
+						if command == 'AUT':
+							self.userAuthentication(connection, fields[1], fields[2])
+							logged = True
 
-						elif len(fields) == 2:
-							if logged == True:
-								# restore dir
-								if command == 'RSB':
-									self.restoreDir(connection, fields[1])
+					elif len(fields) == 2:
+						if logged == True:
+							# restore dir
+							if command == 'RSB':
+								self.restoreDir(connection, fields[1])
 
-									logged = False
+								logged = False
 
-								else:
-									connection.sendall('ERR\n'.encode('ascii'))
-									sys.exit(1)
+							else:
+								connection.sendall('ERR\n'.encode('ascii'))
+								sys.exit(1)
 
-						elif command == 'UPL':
-							self.UPL(connection, fields[1], fields[2], data.decode())
+					elif command == 'UPL':
+						self.UPL(connection, fields[1], fields[2], data.decode())
 
-						#FALTA UPL
-						else:
-							connection.sendall('ERR\n'.encode('ascii'))
-							sys.exit(1)
-
+					#FALTA UPL
 					else:
 						connection.sendall('ERR\n'.encode('ascii'))
 						sys.exit(1)
-				else:
-					break
 
-		except socket.error:
+				else:
+					connection.sendall('ERR\n'.encode('ascii'))
+					sys.exit(1)
+			else:
+				break
+
+		'''except socket.error:
 			print('BS failed to trade data with user')
 			sys.exit(1)
 
 		finally:
-			connection.close()
+			connection.close()'''
 
 
 	def tcp_connect(self):
@@ -347,7 +343,7 @@ if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser()
 
-	parser.add_argument('-b', action='store', metavar='BSport', type=str, required=False, default=59000,
+	parser.add_argument('-b', action='store', metavar='BSport', type=int, required=False, default=59000,
 	help='BSport is the well-known port where the BS server accepts TCP requests\
 	from the user application. This is an optional argument. If omitted, it assumes\
 	the value 59000.')

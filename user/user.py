@@ -53,11 +53,11 @@ class User:
 
 
 	def receiveData(self, n_bytes):
-		try:
-			return self.TCPsocket.recv(n_bytes).decode()
-		except socket.error:
+		#try:
+		return self.TCPsocket.recv(n_bytes).decode()
+		'''except socket.error:
 			print('User failed to receive data from Central Server')
-			sys.exit(1)
+			sys.exit(1)'''
 
 
 	def closeSocket(self):
@@ -139,7 +139,7 @@ class User:
 		message = "BCK " + dir + " " + str(len(dirFiles)) + fileInf + "\n"
 		self.sendData(message)
 		print(message)
-		
+
 		data = self.receiveData(1024)
 		print(data)
 		fields = data.split()
@@ -174,7 +174,7 @@ class User:
 				files = ''
 
 				for x in range(4,4+(N*4), 4):
-					files += fields[x] + ' ' 
+					files += fields[x] + ' '
 
 				print ("completed - {}: {}".format(dir, files))
 
@@ -191,7 +191,7 @@ class User:
 		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(self.current_user[0], self.current_user[1])
 		self.sendData('LSD\n')
-		
+
 		data = self.TCPsocket.recv(1024).decode()
 		print(data)
 		fields = data.split()
