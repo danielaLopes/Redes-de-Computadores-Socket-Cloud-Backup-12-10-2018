@@ -6,6 +6,7 @@ import multiprocessing
 import signal
 import random
 import shutil
+import select
 
 BUFFER_SIZE = 1024
 
@@ -105,58 +106,54 @@ class CS:
 		userPath = os.getcwd() + "/user_" + user
 		dirlist = os.listdir(userPath)
 
-		print(user)
-
-		#dirlen = len(dir)
-
 		if dir not in dirlist:
 			availableBS = open("availableBS.txt", "r")
 			BSs = availableBS.readlines()
+			if len(BSs) == 0:
+				connection.sendall('BKR EOF'.encode('ascii'))
+				print('No BS available')
+			else:
+				BS = random.choice(BSs).split()
+				IPBS = BS[0]
+				portBS = BS[1]
 
-			BS = random.choice(BSs).split()
-			IPBS = BS[0]
-			portBS = BS[1]
+				os.mkdir(userPath + "/" + dir)
 
-			os.mkdir(userPath + "/" + dir)
+				BSfile = open(userPath + "/" + dir + "/IP_port.txt", 'w')
+				BSfile.write(IPBS + " " + portBS)
+				BSfile.close()
 
-			BSfile = open(userPath + "/" + dir + "/IP_port.txt", 'w')
-			BSfile.write(IPBS + " " + portBS)
-			BSfile.close()
+				try:
+					self.udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-			try:
-				self.udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+					f = open("user_" + user + ".txt", "r")
+					password = f.read(8)
+					f.close()
 
-				f = open("user_" + user + ".txt", "r")
-				password = f.read(8)
-				f.close()
-
-				self.udp_socket2.sendto('LSU {} {}\n'.format(user, password).encode('ascii'), (IPBS, int(portBS)))
-
-				print("mandei")
-
-				data, client_addr = self.udp_socket2.recvfrom(BUFFER_SIZE)
-				self.udp_socket2.close()
-
-
-				fields = data.decode().split()
-				command = fields[0]
-				status = fields[1]
-				info = fileData[5 + len(dir):]
-
-				print(fileData)
+					data = ""
+					self.udp_socket2.sendto('LSU {} {}\n'.format(user, password).encode('ascii'), (IPBS, int(portBS)))
+					data, client_addr = UDPfailHandler(self.udp_socket2, IPBS, int(portBS), 'LSU {} {}\n'.format(user, password), data)
+					self.udp_socket2.close()
 
 
-				if command == "LUR":
-					if status == "OK":
-						message = "BKR " + IPBS + " " + portBS + ' ' + info;
-						connection.sendall(message.encode('ascii'))
+					fields = data.decode().split()
+					command = fields[0]
+					status = fields[1]
+					info = fileData[5 + len(dir):]
 
-				else:
-					print("oi")
+					if command == "LUR":
+						if status == "OK":
+							message = "BKR " + IPBS + " " + portBS + ' ' + info;
+							connection.sendall(message.encode('ascii'))
+						else:
+							connection.sendall('BKR ERR'.encode('ascii'))
 
-			except socket.error:
-				print('CS failed to create UDP socket')
-				sys.exit(1)
+					else:
+						connection.sendall('BKR ERR'.encode('ascii'))
+
+				except socket.error:
+					print('CS failed to create UDP socket')
+					sys.exit(1)
 
 		else:
 			with open(userPath + "/" + dir + "/IP_port.txt", 'r') as BSfile:
@@ -168,9 +165,9 @@ class CS:
 			try:
 				self.udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+				data = ""
 				self.udp_socket2.sendto('LSF {} {}\n'.format(user, dir).encode('ascii'), (IPBS, int(portBS)))
-
-				print("mandei")
+				data = UDPfailHandler(self.udp_socket2, IPBS, int(portBS), 'LSF {} {}\n'.format(user, dir), data)
 
 				data, client_addr = self.udp_socket2.recvfrom(BUFFER_SIZE)
 				self.udp_socket2.close()
@@ -184,18 +181,13 @@ class CS:
 				files = set()
 				for i in range(0,len(info),4):
 					files.add(" ".join(info[i:i+4]))
-					#info[i:i+4]
 
-				print("info: {}".format(files))
 				fileData = fileData[6 + len(dir)+len(str(N)):].split()
 				filesData = set()
 				for i in range(0,len(fileData),4):
 					filesData.add(" ".join(fileData[i:i+4]))
 
-				print("filesData: {}".format(filesData))
-
 				modifiedFiles = filesData.difference(files)
-				print('ola {}'.format(modifiedFiles))
 
 				info = str(len(modifiedFiles)) + ' ' + ' '.join(modifiedFiles)
 
@@ -207,15 +199,45 @@ class CS:
 						connection.sendall(message.encode('ascii'))
 
 				else:
-					print("oi")
+					print("Protocol syntax error")
 
 			except socket.error:
 				print('CS failed to create UDP socket')
 				sys.exit(1)
 
 
-	def restoreDir(self):
-		print('ola')
+	def restoreDir(self, connection, dir):
+		# Retrieves the BS that contains requested dir
+		user = self.current_user
+		bsPath = os.getcwd() + "/user_" + user + "/" + dir + "/IP_port.txt"
+		if os.path.exists(bsPath):
+			bsFile = open(bsPath, 'r')
+			BS = bsFile.readline().split()
+			bsFile.close()
+			BSname = BS[0]
+			BSport = BS[1]
+
+			# Checks the availability  of the BS
+			availableBS = open("availableBS.txt", "r")
+			BSs = availableBS.readlines()
+			availableBS.close()
+			BSregistered = False
+
+			if BSs != []:
+				for i in range(0, len(BSs)):
+					BSinfo = BSs[i].split()
+					if BSname == BSinfo[0] and BSport == BSinfo[1]:
+						BSregistered = True
+
+			# Informs user about BS
+			if BSregistered == True:
+				connection.sendall('RSR {} {}'.format(BSname, BSport).encode('ascii'))
+			else:
+				connection.sendall('RSR EOF'.encode('ascii'))
+
+		else:
+			connection.sendall('RSR ERR'.encode('ascii'))
+			print("The requested directory is not correctly backed up")
 
 
 	def dirList(self, connection):
@@ -228,11 +250,9 @@ class CS:
 		else:
 			info += " " + str(len(dirNames))
 			connection.sendall(info.encode())
-			print(info)
 
 			for dir in dirNames:
 				message = " " + dir
-				print(message)
 				connection.send(message.encode('ascii'))
 
 
@@ -243,7 +263,6 @@ class CS:
 		BSfile = open(dirPath + "/IP_port.txt", 'r')
 		BS = BSfile.readline().split()
 		BSfile.close()
-		print(BS)
 
 		IPBS = BS[0]
 		portBS = int(BS[1])
@@ -252,8 +271,8 @@ class CS:
 			self.udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 			self.udp_socket2.sendto('LSF {} {}\n'.format(self.current_user, dir).encode('ascii'), (IPBS, portBS))
-
-			data, client_addr = self.udp_socket2.recvfrom(BUFFER_SIZE)
+			data = ""
+			data, client_addr = UDPfailHandler(self.udp_socket2, IPBS, portBS, 'LSF {} {}\n'.format(self.current_user, dir).encode('ascii'), data)
 			self.udp_socket2.close()
 
 			decodedData = data.decode()
@@ -271,51 +290,58 @@ class CS:
 
 
 	def deleteDir(self, connection, dir):
+		# Retrieves the BS that contains requested dir
 		user = self.current_user
 		bsPath = os.getcwd() + "/user_" + user + "/" + dir + "/IP_port.txt"
-		bsFile = open(bsPath, 'r')
-		BS = bsFile.readline().split()
-		bsFile.close()
+		if os.path.exists(bsPath):
+			bsFile = open(bsPath, 'r')
+			BS = bsFile.readline().split()
+			bsFile.close()
 
-		print("li ficheiro bs")
-		# Requests BS to delete dir
-		try:
-			self.udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-			#ISTO NAO ESTA EM PYTHON2
-			message = 'DLB ' + user + ' ' + dir + '\n'
-			self.udp_socket2.sendto(message.encode('ascii'), (BS[0], int(BS[1])))
-			print('antes de receber do BS')
-			data, client_addr = self.udp_socket2.recvfrom(1024)
-			print('depois de receber do BS')
-			self.udp_socket2.close()
-		except socket.error:
-			print('CS failed to create UDP socket')
-			sys.exit(1)
+			data = ""
 
-		# Deletes dir from CS
-		deleteStatus = False
-		dirPath = os.getcwd() + "/user_" + user + "/" + dir
-		print("apaga diretoria user")
-		if os.path.isdir(dirPath):
-			shutil.rmtree(dirPath)
-			deleteStatus = True
-		else:
-			print('It was not possible to remove the requested directory')
+			# Requests BS to delete dir
+			try:
+				self.udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+				message = 'DLB ' + user + ' ' + dir + '\n'
+				self.udp_socket2.sendto(message.encode('ascii'), (BS[0], int(BS[1])))
+				data = ""
+				data, client_addr = UDPfailHandler(self.udp_socket2, BS[0], int(BS[1]), message, data)
 
-		fields = data.decode().split()
-		command = fields[0]
+				self.udp_socket2.close()
 
-		# Tells user if everything is ok
-		if command == 'DBR':
-			status = fields[1]
-			if status == 'OK' and deleteStatus == True:
-				connection.sendall('DDR OK'.encode('ascii'))
-			elif status == 'NOK' and deleteStatus == False:
-				connection.sendall('DDR NOK'.encode('ascii'))
-			else:
+			except socket.error:
+				print('CS failed to create UDP socket')
+				sys.exit(1)
+
+			# Deletes dir from CS
+			if data != "": # CS received response from BS
+				deleteStatus = False
+				dirPath = os.getcwd() + "/user_" + user + "/" + dir
+				if os.path.isdir(dirPath):
+					shutil.rmtree(dirPath)
+					deleteStatus = True
+				else:
+					print('It was not possible to remove the requested directory')
+
+				fields = data.decode().split()
+				command = fields[0]
+
+				# Tells user if everything is ok
+				if command == 'DBR':
+					status = fields[1]
+					if status == 'OK' and deleteStatus == True:
+						connection.sendall('DDR OK'.encode('ascii'))
+					elif status == 'NOK' and deleteStatus == False:
+						connection.sendall('DDR NOK'.encode('ascii'))
+					else:
+						connection.sendall('ERR'.encode('ascii'))
+				else:
+					connection.sendall('ERR'.encode('ascii'))
+			else: # CS did not receive response from BS
 				connection.sendall('ERR'.encode('ascii'))
 		else:
-			connection.sendall('ERR'.encode('ascii'))
+			print("The requested directory is not backed up")
 
 
 	# Socket related methods
@@ -375,13 +401,13 @@ class CS:
 								availableBS.write('{} {} A\n'.format(IPBS, portBS)) # A for available
 
 							availableBS.close()
+
+							print('{} {} {}'.format(fields[0], IPBS, portBS))
+							self.udp_socket.sendto('RGR OK\n'.encode('ascii'), client_address)
 						except IOError:
 							print('Not possible to append information in availableBS.txt')
+							self.udp_socket.sendto('RGR ERR\n'.encode('ascii'), client_address)
 
-						print('{} {} {}'.format(fields[0], IPBS, portBS))
-						self.udp_socket.sendto('RGR OK\n'.encode('ascii'), client_address)
-
-					#QUANDO FAZER RGR ERR?????
 
 					elif fields[0] == 'UNR':
 						try:
@@ -400,13 +426,13 @@ class CS:
 									availableBS.write(line)
 							availableBS.close()
 
-							self.udp_socket.sendto('UAR OK\n'.encode(), client_address)
+							self.udp_socket.sendto('UAR OK\n'.encode('ascii'), client_address)
 						except IOError:
-							self.udp_socket.sendto('UAR NOK\n'.encode(), client_address)
-
+							self.udp_socket.sendto('UAR NOK\n'.encode('ascii'), client_address)
 
 					else:
 						self.udp_socket.sendto('RGR NOK\n'.encode('ascii'), client_address)
+
 
 		except socket.error:
 			print('CS failed to trade data with BS')
@@ -437,7 +463,6 @@ class CS:
 
 	def tcp_accept(self):
 		# waits for connection with an user
-		print('Waiting for a connection with an user')
 		try:
 			connection, client_addr = self.tcp_socket.accept()
 		except socket.error:
@@ -475,7 +500,6 @@ class CS:
 
 						elif command == 'BCK': # CS response: BKR IPBS portBS N (filename date_time size)*
 								if logged == True:
-									print("vim")
 									self.backupDir(connection, fields[1], fields[2], data.decode())
 									logged = False
 
@@ -554,6 +578,25 @@ class CS:
 def sigIntHandler(num, frame):
 	open('availableBS.txt', 'w').close()
 	sys.exit()
+
+
+def UDPfailHandler(socket, BSname, BSport, message, data):
+	n_trials = 3
+	while n_trials > 0:
+		n_trials -= 1
+
+		socket.setblocking(0)
+		ready = select.select([socket], [], [], 2)
+		client_addr = None
+		# If there is a message to receive
+		if ready[0]:
+			data, client_addr = socket.recvfrom(1024)
+			break
+		# If no response from BS is obtained, it resends message
+		elif n_trials > 0:
+			socket.sendto(message.encode('ascii'), (BSname, BSport))
+
+	return data, client_addr
 
 
 if __name__ == "__main__":

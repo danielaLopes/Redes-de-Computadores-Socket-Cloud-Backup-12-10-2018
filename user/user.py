@@ -179,12 +179,97 @@ class User:
 				print ("completed - {}: {}".format(dir, files))
 
 
-
-		#FALAR COM O BS
-
 	def restoreDir(self, dir):
 		self.connect((self.CSname, self.CSport))
 		self.sendAuthentication(user.current_user[0], user.current_user[1])
+		self.sendData('RST {}\n'.format(dir))
+		data = self.receiveData(1024)
+		self.closeSocket()
+		fields = data.split()
+		command = fields[0]
+		if command == 'RSR':
+			if len(fields) == 2:
+				status = fields[1]
+				if status == 'EOF':
+					print("The BS is not available")
+				elif status == 'ERR':
+					print("The requested directory was not correctly backed up")
+			# User requests backed up files in dir from BS
+			else:
+				IPBS = fields[1]
+				portBS = fields[2]
+				self.connect((IPBS, int(portBS)))
+				AUT_status = self.sendAuthentication(user.current_user[0], user.current_user[1])
+				if AUT_status == 'OK':
+					self.sendData('RSB {}\n'.format(dir))
+					data = self.receiveData(1024)
+					N = int(data.split()[1])
+					fileData = []
+					while True:
+						try:
+							self.TCPsocket.setblocking(0)
+							ready = select.select([self.TCPsocket], [], [], 0.25)
+							# If there is a message to receive
+							if ready[0]:
+								data = self.TCPsocket.recv(1024)
+								fileData.append(data)
+							else:
+								break
+						except socket.error:
+							sys.exit(1)
+
+
+					if not os.path.exists(dir):
+						os.mkdir(dir)
+					fileList = os.listdir(dir)
+
+
+					space_counter = 0 # 0 - 5 spaces until the start of the file content
+					file_name = ''
+					file_data = ''
+					file_time = ''
+					file_size = ''
+					word = ''
+					content = ''
+					onFileContent = False
+					content_counter = 0
+					for i in range(0, len(fileData)):
+						for char in fileData[i]:
+							if onFileContent == False:
+								if char == 32:
+									print(char)
+									space_counter += 1
+									if space_counter == 1:
+										file_name = word
+										print("file_name: " + file_name)
+										word = ''
+									elif space_counter == 2:
+										file_data = word
+										print("file_data: " + file_data)
+										word = ''
+									elif space_counter == 3:
+										file_time = word
+										print("file_time: " + file_time)
+										word = ''
+									elif space_counter == 4:
+										file_size = word
+										print("file_size: " + file_size)
+										word = ''
+									# the file content starts
+									elif space_counter == 5:
+										onFileContent = True
+										space_counter = 0
+
+								else:
+									print(char)
+									word += char
+							else:
+								if content_counter >= fileSize:
+									content_counter += 1
+									content += char
+								else:
+									content_counter = 0
+									onFileContent = False
 
 
 	def dirlist(self):

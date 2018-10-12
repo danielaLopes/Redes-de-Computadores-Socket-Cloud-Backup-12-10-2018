@@ -7,11 +7,12 @@ import shutil
 import time
 import datetime
 from datetime import datetime
+import select
 
 
 BUFFER_SIZE = 1024
 
-BSname = 'localhost'
+BSname = 'localhost'#socket.gethostname()
 
 class BS:
 
@@ -53,15 +54,41 @@ class BS:
 			print('It was not possible to open the requested file')
 
 
+	def restoreDir(self, connection, dir):
+		user = self.current_user
+		dirPath = os.getcwd() + "/user_" + user + "/" + dir
+		if os.path.exists(dirPath):
+			dirNames = os.listdir(dirPath)
+			N = len(dirNames)
+			fileInf = ""
+
+			connection.sendall('RBR {}\n'.format(N).encode('ascii'))
+
+			for file in dirNames:
+				fileSize = int(os.stat(dirPath + "/" + file).st_size)
+				bytes_read = 0
+				fileInf = ' ' + file + ' ' + time.strftime('%m.%d.%Y %H:%M:%S',
+				time.gmtime(os.path.getmtime(dirPath + "/" + file))) + ' ' + str(int(os.stat(dirPath + "/" + file).st_size)) + ' '
+				connection.sendall('{}'.format(fileInf).encode('ascii'))
+				currentFile = open(dirPath + "/" + file, 'rb')
+				while bytes_read <= fileSize:
+					data = currentFile.read(1024)
+					bytes_read += fileSize
+					connection.send(data)
+
+		else:
+			connection.sendall('RBR EOF\n'.encode('ascii'))
+			print('The requested directory was not found')
+
+
 	def deleteDir(self, connection, user, dir):
 		dirPath = os.getcwd() + "/user_" + user + "/" + dir
 		userPath = os.getcwd() + "/user_" + user
 		if os.path.isdir(dirPath):
-			print("adeus")
 			shutil.rmtree(dirPath)
 			if len(os.listdir(userPath)) == 0:
-				print("ola")
 				shutil.rmtree(userPath)
+				os.remove(userPath + ".txt")
 			self.udp_socket2.sendto('DBR OK\n'.encode('ascii'), connection)
 		else:
 			print('It was not possible to remove the requested directory')
@@ -100,7 +127,6 @@ class BS:
 			print('directory already exists')
 
 	def UPL (self, connection, dir, N, data):
-		print("coisas")
 		user = self.current_user
 		userPath = os.getcwd() + "/user_" + user
 
@@ -122,10 +148,8 @@ class BS:
 		connection.sendall("UPR OK".encode('ascii'))
 
 
-
 	def makeFile (self, files, path):
 		content = files.split()
-		print(files)
 		fileName = content[0]
 		date = content[1] + " " + content[2]
 		#NAO ESQUECER MUDAR DATA PARA A ANTIGA GIGANTE
@@ -139,8 +163,6 @@ class BS:
 
 		dateTime = time.strptime(content[1] + " " + content[2], '%m.%d.%Y %H:%M:%S')
 		epoch = time.mktime(dateTime) + 60*60
-		print(dateTime)
-		print(epoch)
 
 		os.utime(path+"/"+fileName, (epoch,epoch))
 
@@ -149,56 +171,54 @@ class BS:
 
 
 	def userRequest(self, connection):
-		#try:
-		logged = False
+		try:
+			logged = False
 
-		while True:
-			data = connection.recv(BUFFER_SIZE)
+			while True:
+				data = connection.recv(BUFFER_SIZE)
 
-			if data:
-				fields = data.decode().split()
-				command = fields[0]
+				if data:
+					fields = data.decode().split()
+					command = fields[0]
 
-				print(command)
+					if command in self.user_commands:
+						if len(fields) == 3:
+							if command == 'AUT':
+								self.userAuthentication(connection, fields[1], fields[2])
+								logged = True
 
-				if command in self.user_commands:
-					if len(fields) == 3:
-						if command == 'AUT':
-							self.userAuthentication(connection, fields[1], fields[2])
-							logged = True
+						elif len(fields) == 2:
+							if logged == True:
+								# restore dir
+								if command == 'RSB':
+									self.restoreDir(connection, fields[1])
 
-					elif len(fields) == 2:
-						if logged == True:
-							# restore dir
-							if command == 'RSB':
-								self.restoreDir(connection, fields[1])
+									logged = False
 
-								logged = False
+								else:
+									connection.sendall('ERR\n'.encode('ascii'))
+									sys.exit(1)
 
-							else:
-								connection.sendall('ERR\n'.encode('ascii'))
-								sys.exit(1)
+						elif command == 'UPL':
+							self.UPL(connection, fields[1], fields[2], data.decode())
 
-					elif command == 'UPL':
-						self.UPL(connection, fields[1], fields[2], data.decode())
+						#FALTA UPL
+						else:
+							connection.sendall('ERR\n'.encode('ascii'))
+							sys.exit(1)
 
-					#FALTA UPL
 					else:
 						connection.sendall('ERR\n'.encode('ascii'))
 						sys.exit(1)
-
 				else:
-					connection.sendall('ERR\n'.encode('ascii'))
-					sys.exit(1)
-			else:
-				break
+					break
 
-		'''except socket.error:
+		except socket.error:
 			print('BS failed to trade data with user')
 			sys.exit(1)
 
 		finally:
-			connection.close()'''
+			connection.close()
 
 
 	def tcp_connect(self):
@@ -261,9 +281,10 @@ class BS:
 			except socket.error:
 				print('BS unable to create UDP socket')
 			# send data
-			self.udp_socket.sendto(('{} {} {}\n'.format('REG', BSname, self.BSport)).encode(), (self.CSname, self.CSport))
+			self.udp_socket.sendto(('{} {} {}\n'.format('REG', BSname, self.BSport)).encode('ascii'), (self.CSname, self.CSport))
+			data = ""
 			# receive response
-			data, server = self.udp_socket.recvfrom(BUFFER_SIZE)
+			data, server = UDPfailHandler(self.udp_socket, self.CSname, self.CSport, '{} {} {}\n'.format('REG', BSname, self.BSport), data)
 
 			fields = data.decode().split();
 			command = fields[0]
@@ -271,19 +292,17 @@ class BS:
 
 			if data and command == 'RGR':
 				if status == 'OK':
-					print(data.decode())
+					print("Registry accepted")
 				elif status == 'NOK':
-					#fazer algo
-					print(ola)
+					print("Registry declined")
 				elif status == 'ERR':
 					print('Wrong protocol message received from CS')
 					sys.exit(1)
-					#repeat information trade to assure everything is received
 
 			else:
+				data = ""
 				self.udp_socket.sendto(('REG {} {}\n'.format(BSname, self.BSport)).encode(), (self.CSname, self.CSport))
-				data, server = udp_socket.recvfrom(BUFFER_SIZE).decode()
-				print(data)
+				data, server = UDPfailHandler(self.udp_socket, self.CSname, self.CSport, 'REG {} {}\n'.format(BSname, self.BSport), data)
 
 		except socket.error:
 			print('BS failed to trade data')
@@ -310,7 +329,20 @@ class BS:
 			sys.exit(1)
 
 		def sigIntHandler(num, frame):
+			data = ""
 			self.udp_socket2.sendto(('UNR {} {}\n'.format(BSname, self.BSport)).encode('ascii'), (self.CSname, self.CSport))
+			data, server = UDPfailHandler(self.udp_socket2, self.CSname, self.CSport, 'UNR {} {}\n'.format(BSname, self.BSport), data)
+			fields = data.decode().split()
+			if fields[0] == 'UAR':
+				if fields[1] == 'OK':
+					print('BS succefully unregistered')
+				elif fields[1] == 'NOK':
+					print('BS not succefully unregistered')
+				elif fields[1] == 'ERR':
+					print('Protocol syntax error')
+			else:
+				print('Protocol syntax error')
+
 			sys.exit(0)
 
 		# Captures signal from Cntrl-C
@@ -328,7 +360,6 @@ class BS:
 				if command == 'LSF': # CS response: AUR status
 					self.LSF(client_addr, fields[1], fields[2])
 
-				#UPDATE!!!!
 				if command == 'LSU': # CS response: AUR status
 					self.LSU(client_addr, fields[1], fields[2])
 
@@ -337,6 +368,24 @@ class BS:
 
 		finally:
 			self.udp_socket2.close()
+
+def UDPfailHandler(socket, CSname, CSport, message, data):
+	n_trials = 3
+	while n_trials > 0:
+		n_trials -= 1
+
+		socket.setblocking(0)
+		ready = select.select([socket], [], [], 2)
+		client_addr = None
+		# If there is a message to receive
+		if ready[0]:
+			data, client_addr = socket.recvfrom(1024)
+			break
+		# If no response from BS is obtained, it resends message
+		elif n_trials > 0:
+			socket.sendto(message.encode('ascii'), (BSname, BSport))
+
+	return data, client_addr
 
 
 if __name__ == "__main__":
